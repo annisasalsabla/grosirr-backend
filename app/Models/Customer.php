@@ -10,12 +10,21 @@ class Customer extends Model
     use HasFactory;
 
     protected $fillable = [
-        'name', 'phone', 'address', 'is_setia'
+        'name', 'phone', 'address', 'member_status',
+        'calon_member_since', 'member_since', 'rejection_note'
     ];
 
     protected $casts = [
-        'is_setia' => 'boolean',
+        'calon_member_since' => 'datetime',
+        'member_since' => 'datetime',
     ];
+
+    protected $appends = ['is_setia'];
+
+    public function getIsSetiaAttribute()
+    {
+        return ($this->member_status ?? 'umum') === 'member';
+    }
 
     public function transactions()
     {

@@ -33,6 +33,7 @@ class CustomerController extends Controller
                     'name' => $customer->name,
                     'phone' => $customer->phone,
                     'address' => $customer->address,
+                    'member_status' => $customer->member_status,
                 ];
             });
 

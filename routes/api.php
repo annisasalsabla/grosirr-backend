@@ -173,6 +173,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/payables/{id}/pay', [App\Http\Controllers\Admin\PayableController::class, 'pay']);
         
         // ==================== CUSTOMERS (KELOLA PELANGGAN) ====================
+        Route::get('/customers/calon-member', [App\Http\Controllers\Admin\CustomerController::class, 'calonMember']);
         Route::get('/customers', [App\Http\Controllers\Admin\CustomerController::class, 'index']);
         Route::post('/customers', [App\Http\Controllers\Admin\CustomerController::class, 'store']);
         Route::get('/customers/{id}', [App\Http\Controllers\Admin\CustomerController::class, 'show']);
@@ -180,6 +181,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::delete('/customers/{id}', [App\Http\Controllers\Admin\CustomerController::class, 'destroy']);
         Route::get('/customers/with-receivables', [App\Http\Controllers\Admin\CustomerController::class, 'withReceivables']);
         Route::get('/customers/search', [App\Http\Controllers\Admin\CustomerController::class, 'search']);
+        Route::post('/customers/{id}/approve-member', [App\Http\Controllers\Admin\CustomerController::class, 'approveMember']);
+        Route::post('/customers/{id}/reject-member', [App\Http\Controllers\Admin\CustomerController::class, 'rejectMember']);
 
         // ==================== RECEIVABLES (PIUTANG CUSTOMER) ====================
         // Daftar piutang

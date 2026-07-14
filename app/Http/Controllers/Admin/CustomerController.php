@@ -75,7 +75,19 @@ class CustomerController extends Controller
                 'is_setia' => 'boolean',
             ]);
 
-            $customer = Customer::create($request->all());
+            // Ambil semua input kecuali is_setia dan kolom status keanggotaan
+            $data = $request->except([
+                'is_setia',
+                'member_status',
+                'calon_member_since',
+                'member_since',
+                'rejection_note'
+            ]);
+            
+            // Set default status baru sebagai 'umum'
+            $data['member_status'] = 'umum';
+
+            $customer = Customer::create($data);
 
             $this->logger->info('Customer created by Admin', [
                 'customer_id' => $customer->id,
@@ -140,7 +152,16 @@ class CustomerController extends Controller
                 'is_setia' => 'boolean',
             ]);
 
-            $customer->update($request->all());
+            // Ambil semua input kecuali is_setia dan kolom status keanggotaan
+            $data = $request->except([
+                'is_setia',
+                'member_status',
+                'calon_member_since',
+                'member_since',
+                'rejection_note'
+            ]);
+
+            $customer->update($data);
 
             $this->logger->info('Customer updated by Admin', [
                 'customer_id' => $customer->id,
@@ -268,6 +289,118 @@ class CustomerController extends Controller
         } catch (\Exception $e) {
             $this->logger->error('Search customers error: ' . $e->getMessage());
             return $this->error('Terjadi kesalahan saat mencari pelanggan', null, 500);
+        }
+    }
+
+    /**
+     * Get list of customers waiting for member approval
+     * GET /api/admin/customers/calon-member
+     */
+    public function calonMember(Request $request)
+    {
+        try {
+            $perPage = $request->input('per_page', 10);
+
+            $customers = Customer::where('member_status', 'calon_member')
+                ->orderBy('calon_member_since', 'desc')
+                ->paginate($perPage);
+
+            // Hitung statistik transaksi secara real-time
+            $customers->getCollection()->transform(function ($customer) {
+                $stats = DB::table('transactions')
+                    ->where('customer_id', $customer->id)
+                    ->selectRaw('COUNT(*) as total_transaksi, SUM(total_amount) as total_belanja')
+                    ->first();
+
+                $customer->total_transaksi = (int) $stats->total_transaksi;
+                $customer->total_belanja = (float) ($stats->total_belanja ?? 0);
+                return $customer;
+            });
+
+            return $this->success($customers, 'Daftar calon member berhasil dimuat', 200);
+        } catch (\Exception $e) {
+            $this->logger->error('Get calon member error: ' . $e->getMessage());
+            return $this->error('Terjadi kesalahan saat memuat daftar calon member', null, 500);
+        }
+    }
+
+    /**
+     * Approve customer to become a member
+     * POST /api/admin/customers/{id}/approve-member
+     */
+    public function approveMember(Request $request, $id)
+    {
+        DB::beginTransaction();
+        try {
+            // Lock baris untuk mencegah double click/race condition approval
+            $customer = Customer::where('id', $id)->lockForUpdate()->firstOrFail();
+
+            if ($customer->member_status !== 'calon_member') {
+                DB::rollBack();
+                return $this->error('Pelanggan ini bukan calon member / sudah disetujui sebelumnya.', null, 400);
+            }
+
+            $customer->update([
+                'member_status' => 'member',
+                'member_since' => now(),
+            ]);
+
+            DB::commit();
+
+            $this->logger->info('Customer approved as member', [
+                'customer_id' => $customer->id,
+                'admin_id' => $request->user()->id
+            ]);
+
+            return $this->success($customer, 'Pelanggan berhasil disetujui sebagai member', 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $this->logger->error('Approve member error: ' . $e->getMessage());
+            return $this->error('Terjadi kesalahan saat menyetujui member', null, 500);
+        }
+    }
+
+    /**
+     * Reject customer member request
+     * POST /api/admin/customers/{id}/reject-member
+     */
+    public function rejectMember(Request $request, $id)
+    {
+        try {
+            $request->validate([
+                'rejection_note' => 'nullable|string|max:500',
+            ]);
+        } catch (ValidationException $e) {
+            return $this->validationError($e->errors(), 'Catatan penolakan tidak valid');
+        }
+
+        DB::beginTransaction();
+        try {
+            // Lock baris untuk mencegah double click/race condition
+            $customer = Customer::where('id', $id)->lockForUpdate()->firstOrFail();
+
+            if ($customer->member_status !== 'calon_member') {
+                DB::rollBack();
+                return $this->error('Pelanggan ini bukan calon member / sudah diproses sebelumnya.', null, 400);
+            }
+
+            $customer->update([
+                'member_status' => 'ditolak',
+                'rejection_note' => $request->rejection_note,
+            ]);
+
+            DB::commit();
+
+            $this->logger->info('Customer member request rejected', [
+                'customer_id' => $customer->id,
+                'admin_id' => $request->user()->id
+            ]);
+
+            return $this->success($customer, 'Pendaftaran member berhasil ditolak', 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $this->logger->error('Reject member error: ' . $e->getMessage());
+            return $this->error('Terjadi kesalahan saat menolak member', null, 500);
         }
     }
 }

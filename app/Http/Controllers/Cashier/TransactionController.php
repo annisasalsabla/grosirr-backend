@@ -68,7 +68,23 @@ class TransactionController extends Controller
                 // Customer ID untuk piutang (wajib jika metode kredit)
                 'customer_id' => 'required_if:payment_method,receivable|integer|exists:customers,id',
                 'bukti_pembayaran' => 'required_if:payment_method,qris,qris_statis,transfer|image|max:2048',
+                
+                // Tambahan validasi FITUR 1
+                'customer_name' => 'nullable|string|max:255',
+                'customer_phone' => 'nullable|string|max:15',
             ]);
+
+            // Merekam customer_id asli SEBELUM merge & validasi paling awal (Fitur 2 - Bagian C)
+            $customerId = null;
+            if ($request->payment_method === 'receivable') {
+                $customerId = $request->customer_id;
+
+                $customerForCredit = Customer::find($customerId);
+                if (!$customerForCredit || $customerForCredit->member_status !== 'member') {
+                    DB::rollBack();
+                    return $this->error('Pelanggan ini belum terdaftar sebagai member, tidak bisa melakukan transaksi kredit/piutang.', null, 403);
+                }
+            }
             
             $totalAmount = 0;
             $itemsData = [];
@@ -164,10 +180,51 @@ class TransactionController extends Controller
             }
             $feeAmount = $totalAmount * ($feePercentage / 100);
 
+            // Logika pencarian/pembuatan customer otomatis Fitur 1
+            if ($customerId === null && $request->filled('customer_phone')) {
+                $phone = $request->customer_phone;
+                
+                // 2a. Cari customer existing
+                $customer = Customer::where('phone', $phone)->first();
+                
+                if ($customer) {
+                    $customerId = $customer->id;
+                } else {
+                    // 2c. Buat customer baru
+                    try {
+                        $customerName = $request->customer_name ?: 'Pelanggan Umum';
+                        
+                        $customer = Customer::create([
+                            'name' => $customerName,
+                            'phone' => $phone,
+                            'member_status' => 'umum',
+                        ]);
+                        $customerId = $customer->id;
+                    } catch (\Illuminate\Database\QueryException $e) {
+                        // 2d. Tangani race condition di MySQL, PostgreSQL, dan SQLite
+                        if (
+                            in_array($e->getCode(), ['23000', '23505']) 
+                            || str_contains($e->getMessage(), '1062')
+                            || str_contains($e->getMessage(), 'UNIQUE constraint failed')
+                            || str_contains($e->getMessage(), 'duplicate key value violates unique constraint')
+                        ) {
+                            $customer = Customer::where('phone', $phone)->first();
+                            if ($customer) {
+                                $customerId = $customer->id;
+                            } else {
+                                throw $e;
+                            }
+                        } else {
+                            throw $e;
+                        }
+                    }
+                }
+            }
+
             // 1. Buat data transaksi utama
             $transaction = Transaction::create([
                 'cashier_id' => $request->user()->id,
-                'customer_id' => $request->payment_method === 'receivable' ? $request->customer_id : null,
+                'customer_id' => $customerId,
                 'payment_method' => $request->payment_method,
                 'dp_payment_method' => $dpPaymentMethod,
                 'payment_status' => $paymentStatus,

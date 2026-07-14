@@ -46,14 +46,12 @@ class DashboardController extends Controller
 
             // Penjualan (Rp): Akumulasi total nilai transaksi hari ini
             $todaySales = Transaction::where('tx_date', $todayDateStr)
-                
-                ->whereIn('payment_status', ['paid', 'partial', 'unpaid', 'pending'])
+            ->whereIn('payment_status', ['paid', 'partial', 'unpaid'])
                 ->sum('total_amount');
 
             // Transaksi: Hitung total kuantitas transaksi hari ini
             $todayTransactionCount = Transaction::where('tx_date', $todayDateStr)
-                
-                ->whereIn('payment_status', ['paid', 'partial', 'unpaid', 'pending'])
+            ->whereIn('payment_status', ['paid', 'partial', 'unpaid'])
                 ->count();
 
             // Barang Rusak: Total kuantitas logs barang rusak hari ini
@@ -131,8 +129,7 @@ class DashboardController extends Controller
                     DB::raw('SUM(total_amount) as daily_sales')
                 )
                 ->whereBetween('tx_date', [$sevenDaysAgoStr, $todayDateStr])
-                
-                ->whereIn('payment_status', ['paid', 'partial', 'unpaid', 'pending'])
+                ->whereIn('payment_status', ['paid', 'partial', 'unpaid'])
                 ->groupBy('tx_date')
                 ->orderBy('tx_date')
                 ->pluck('daily_sales', 'date')
@@ -183,8 +180,7 @@ class DashboardController extends Controller
             // PAID only, last 30 days
             $thirtyDaysAgo = Carbon::now('Asia/Jakarta')->subDays(30);
             $bestSellingProducts = TransactionDetail::where('transaction_details.created_at', '>=', $thirtyDaysAgo)
-                
-                ->whereIn('transactions.payment_status', ['paid', 'partial', 'unpaid', 'pending'])
+                ->whereIn('transactions.payment_status', ['paid', 'partial', 'unpaid'])
                 ->join('transactions', 'transaction_details.transaction_id', '=', 'transactions.id')
                 ->join('products', 'transaction_details.product_id', '=', 'products.id')
                 ->select(

@@ -63,7 +63,7 @@ class ReportController extends Controller
 
             $query = Transaction::with(['cashier', 'details.product'])
                 ->whereNotNull('tx_date')
-                ->whereIn('payment_status', ['paid', 'partial', 'unpaid', 'pending']);
+                ->whereIn('payment_status', ['paid', 'partial', 'unpaid']);
             
             // Filter Payment Method
             if ($request->filled('payment_method') && $request->payment_method !== 'all') {
@@ -160,7 +160,7 @@ class ReportController extends Controller
             $calculatedSummary = $this->calculateSalesSummary($summaryQuery, $category);
 
             $summary = [
-                'total_transactions' => (clone $summaryQuery)->whereIn('payment_status', ['paid', 'partial', 'unpaid', 'pending'])->count(),
+                'total_transactions' => (clone $summaryQuery)->whereIn('payment_status', ['paid', 'partial', 'unpaid'])->count(),
                 'total_omzet_kotor' => $calculatedSummary['total_omzet_kotor'],
                 'total_omzet_kotor_formatted' => $calculatedSummary['total_omzet_kotor_formatted'],
                 'total_payment_fee' => $calculatedSummary['total_payment_fee'],
@@ -227,7 +227,7 @@ class ReportController extends Controller
             // EXCLUDE PENDING / FAILED (Murni Transaksi Valid Saja)
             $query = Profit::with(['product', 'transaction.details'])
                 ->whereHas('transaction', function ($q) {
-                    $q->whereIn('payment_status', ['paid', 'partial', 'unpaid', 'pending']);
+                    $q->whereIn('payment_status', ['paid', 'partial', 'unpaid']);
                 });
             
             $category = $request->input('category');

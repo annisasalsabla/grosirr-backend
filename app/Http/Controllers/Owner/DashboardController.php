@@ -49,8 +49,7 @@ class DashboardController extends Controller
             DB::raw("SUM(CASE WHEN payment_method = 'midtrans_qris' THEN total_amount ELSE 0 END) as midtrans_qris_total")
         )
             ->whereIn('tx_date', $dates)
-            
-            ->whereIn('payment_status', ['paid', 'partial', 'unpaid', 'pending'])
+            ->whereIn('payment_status', ['paid', 'partial', 'unpaid'])
             ->groupBy('tx_date')
             ->get()
             ->keyBy('tx_date');
@@ -77,7 +76,7 @@ class DashboardController extends Controller
             ->join('products', 'transaction_details.product_id', '=', 'products.id')
             ->join('transactions', 'transaction_details.transaction_id', '=', 'transactions.id')
             ->where('transactions.tx_date', $date)
-            ->whereIn('transactions.payment_status', ['paid', 'partial', 'unpaid', 'pending'])
+            ->whereIn('transactions.payment_status', ['paid', 'partial', 'unpaid'])
             ->groupBy('products.category')
             ->selectRaw('products.category, SUM(transactions.total_amount) as total_sales')
             ->get()
@@ -95,8 +94,7 @@ class DashboardController extends Controller
     private function getDailyProfitByCategory(string $date): array
     {
         $validTransactionIds = Transaction::where('tx_date', $date)
-            
-            ->whereIn('payment_status', ['paid', 'partial', 'unpaid', 'pending'])
+            ->whereIn('payment_status', ['paid', 'partial', 'unpaid'])
             ->pluck('id');
 
         $result = Profit::select('products.category')
@@ -122,8 +120,7 @@ class DashboardController extends Controller
 
         $validTransactions = Transaction::select('id', 'tx_date', 'total_amount')
             ->whereIn('tx_date', $datesStr)
-            
-            ->whereIn('payment_status', ['paid', 'partial', 'unpaid', 'pending'])
+            ->whereIn('payment_status', ['paid', 'partial', 'unpaid'])
             ->get();
         $validTransactionIds = $validTransactions->pluck('id');
 
@@ -192,7 +189,7 @@ class DashboardController extends Controller
     private function getTotalProfitByCategory(): array
     {
         $validTransactionIds = Transaction::query()
-            ->whereIn('payment_status', ['paid', 'partial', 'unpaid', 'pending'])
+            ->whereIn('payment_status', ['paid', 'partial', 'unpaid'])
             ->pluck('id');
         $result = Profit::select('products.category')
             ->join('products', 'profits.product_id', '=', 'products.id')
@@ -231,8 +228,7 @@ class DashboardController extends Controller
                 DB::raw('COUNT(*) as total_transactions')
             )
                 ->where('tx_date', $today)
-                
-                ->whereIn('payment_status', ['paid', 'partial', 'unpaid', 'pending'])
+                ->whereIn('payment_status', ['paid', 'partial', 'unpaid'])
                 ->first();
 
             // QRIS fee hari ini - dari cache yang sudah di-prefetch
@@ -245,8 +241,7 @@ class DashboardController extends Controller
 
             // 3. Daily profit murni dari ID valid (Bebas dari failed/cancelled)
             $validDailyTxIds = Transaction::where('tx_date', $today)
-                
-                ->whereIn('payment_status', ['paid', 'partial', 'unpaid', 'pending'])
+                ->whereIn('payment_status', ['paid', 'partial', 'unpaid'])
                 ->pluck('id');
             $dailyProfitRaw = Profit::whereIn('transaction_id', $validDailyTxIds)
                 ->sum('profit_amount');

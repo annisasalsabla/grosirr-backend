@@ -24,5 +24,8 @@ class AppServiceProvider extends ServiceProvider
         
         // Set locale ke Indonesia
         app()->setLocale('id');
+
+        // Registrasi Transaction Observer
+        \App\Models\Transaction::observe(\App\Observers\TransactionObserver::class);
     }
 }

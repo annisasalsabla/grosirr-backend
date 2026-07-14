@@ -11,7 +11,7 @@ class Receivable extends Model
     use HasFactory;
 
     protected $fillable = [
-        'transaction_id', 'customer_name', 'customer_phone', 'customer_address',
+        'transaction_id', 'customer_id', 'customer_name', 'customer_phone', 'customer_address',
         'total_debt', 'paid_amount', 'remaining_debt', 'due_date', 'status'
     ];
 
