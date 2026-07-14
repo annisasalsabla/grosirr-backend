@@ -13,7 +13,7 @@ trait SalesReportCalculator
     protected function calculateSalesSummary($query, $categoryId = null)
     {
         // Terapkan filter status baku
-        $validQuery = (clone $query)->whereIn('payment_status', ['paid', 'partial', 'unpaid']);
+        $validQuery = (clone $query)->validSales();
 
         if ($categoryId && $categoryId !== 'all') {
             // Omzet Kotor spesifik kategori

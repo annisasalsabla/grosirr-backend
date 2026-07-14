@@ -45,7 +45,7 @@ class TransactionController extends Controller
                 $query->where('payment_status', $status);
             } else {
                 // Default: Tampilkan semua transaksi valid (kecuali failed/cancelled)
-                $query->whereIn('payment_status', ['paid', 'partial', 'unpaid', 'pending']);
+                $query->validSales();
             }
 
             // Filter by payment method

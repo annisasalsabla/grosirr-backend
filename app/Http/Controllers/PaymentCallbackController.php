@@ -32,6 +32,13 @@ class PaymentCallbackController extends Controller
         try {
             $payload = $request->all();
             
+            // LOGGING AWAL (SEBELUM VERIFIKASI)
+            Log::info('Midtrans webhook masuk', [
+                'raw_payload' => $payload,
+                'ip' => $request->ip(),
+                'timestamp' => now(),
+            ]);
+            
             Log::info('Midtrans callback received', ['payload' => $payload]);
             
             $orderId = $payload['order_id'] ?? null;

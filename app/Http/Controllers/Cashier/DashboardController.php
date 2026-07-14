@@ -34,7 +34,7 @@ class DashboardController extends Controller
             // 1. Jumlah transaksi BERHASIL hari ini (semua status valid)
             $transactionCount = Transaction::where('cashier_id', $cashierId)
                 ->whereDate('created_at', $today)
-                ->whereIn('payment_status', ['paid', 'partial', 'unpaid', 'pending'])
+                ->validSales()
                 ->count();
 
             // 2. Total uang tunai di laci (Fisik Laci Kasir) - TIDAK DISENTUH
@@ -62,7 +62,7 @@ class DashboardController extends Controller
             // 2c. Opsi 2b: Total omzet kotor hari ini (semua transaksi valid)
             $totalOmzetToday = Transaction::where('cashier_id', $cashierId)
                 ->whereDate('created_at', $today)
-                ->whereIn('payment_status', ['paid', 'partial', 'unpaid', 'pending'])
+                ->validSales()
                 ->sum('total_amount');
 
             // 3. Info stok tersedia
@@ -75,7 +75,7 @@ class DashboardController extends Controller
             // 4. Transaksi terakhir hari ini (3 terakhir, semua status valid)
             $recentTransactions = Transaction::where('cashier_id', $cashierId)
                 ->whereDate('created_at', $today)
-                ->whereIn('payment_status', ['paid', 'partial', 'unpaid', 'pending'])
+                ->validSales()
                 ->orderBy('created_at', 'desc')
                 ->limit(3)
                 ->get(['id', 'invoice_number', 'total_amount', 'payment_method', 'payment_status', 'created_at']);

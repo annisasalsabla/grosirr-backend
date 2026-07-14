@@ -70,7 +70,7 @@ class ReportController extends Controller
             
             $query = Transaction::with(['cashier', 'details.product'])
                 ->whereNotNull('tx_date')
-                ->whereIn('payment_status', ['paid', 'partial', 'unpaid']);
+                ->validSales();
 
             // Filter Payment Method
             if ($request->filled('payment_method') && $request->payment_method !== 'all') {
@@ -196,7 +196,7 @@ class ReportController extends Controller
             $calculatedSummary = $this->calculateSalesSummary($summaryQuery, $category);
             
             $summary = [
-                'total_transactions' => (clone $summaryQuery)->whereIn('payment_status', ['paid', 'partial', 'unpaid'])->count(),
+                'total_transactions' => (clone $summaryQuery)->validSales()->count(),
                 'total_omzet_kotor' => $calculatedSummary['total_omzet_kotor'],
                 'total_omzet_kotor_formatted' => $calculatedSummary['total_omzet_kotor_formatted'],
                 'total_payment_fee' => $calculatedSummary['total_payment_fee'],
@@ -328,7 +328,7 @@ class ReportController extends Controller
             // EXCLUDE PENDING / FAILED (Murni Transaksi Valid Saja)
             $query = Profit::with(['product', 'transaction.details'])
                 ->whereHas('transaction', function ($q) {
-                    $q->whereIn('payment_status', ['paid', 'partial', 'unpaid']);
+                    $q->validSales();
                 });
 
             $category = $request->input('category');
@@ -673,7 +673,7 @@ class ReportController extends Controller
     {
         // Include valid payment statuses
         $query = Transaction::with(['cashier', 'details.product'])
-            ->whereIn('payment_status', ['paid', 'partial', 'unpaid', 'pending']);
+            ->validSales();
 
         if ($request->period === 'custom' && $request->start_date && $request->end_date) {
             $query->whereBetween('tx_date', [$request->start_date, $request->end_date]);
@@ -703,6 +703,7 @@ class ReportController extends Controller
             'generated_at' => now()->format('d/m/Y H:i:s'),
             'summary' => $summary,
             'transactions' => $transactions,
+            'has_category_filter' => false,
         ];
     }
 
@@ -713,7 +714,7 @@ class ReportController extends Controller
         $data = [];
 
         if (!$baseQuery) {
-            $baseQuery = \App\Models\Transaction::whereIn('payment_status', ['paid', 'partial', 'unpaid', 'pending']);
+            $baseQuery = \App\Models\Transaction::validSales();
         }
         
         $periodDates = [];
@@ -772,7 +773,7 @@ class ReportController extends Controller
         if (!$baseQuery) {
             $baseQuery = \App\Models\Profit::with(['product', 'transaction.details'])
                 ->whereHas('transaction', function ($q) {
-                    $q->whereIn('payment_status', ['paid', 'partial', 'unpaid', 'pending']);
+                    $q->validSales();
                 });
         }
         
@@ -1117,7 +1118,7 @@ class ReportController extends Controller
     {
         $query = Profit::with(['product', 'transaction'])
             ->whereHas('transaction', function ($q) {
-                $q->whereIn('payment_status', ['paid', 'partial', 'unpaid', 'pending']);
+                $q->validSales();
             });
 
         switch ($request->period) {

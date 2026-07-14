@@ -103,6 +103,11 @@ class Transaction extends Model
         return $this->remaining_balance;
     }
 
+    public function scopeValidSales($query)
+    {
+        return $query->whereIn('payment_status', ['paid', 'partial', 'unpaid']);
+    }
+
     // NOTE:
     // Kolom installment/DP seperti down_payment_amount, remaining_balance,
     // dan installment_count tidak tersedia di tabel `transactions` saat ini.

@@ -46,12 +46,12 @@ class DashboardController extends Controller
 
             // Penjualan (Rp): Akumulasi total nilai transaksi hari ini
             $todaySales = Transaction::where('tx_date', $todayDateStr)
-            ->whereIn('payment_status', ['paid', 'partial', 'unpaid'])
+            ->validSales()
                 ->sum('total_amount');
 
             // Transaksi: Hitung total kuantitas transaksi hari ini
             $todayTransactionCount = Transaction::where('tx_date', $todayDateStr)
-            ->whereIn('payment_status', ['paid', 'partial', 'unpaid'])
+            ->validSales()
                 ->count();
 
             // Barang Rusak: Total kuantitas logs barang rusak hari ini
@@ -129,7 +129,7 @@ class DashboardController extends Controller
                     DB::raw('SUM(total_amount) as daily_sales')
                 )
                 ->whereBetween('tx_date', [$sevenDaysAgoStr, $todayDateStr])
-                ->whereIn('payment_status', ['paid', 'partial', 'unpaid'])
+                ->validSales()
                 ->groupBy('tx_date')
                 ->orderBy('tx_date')
                 ->pluck('daily_sales', 'date')

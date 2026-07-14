@@ -151,6 +151,12 @@ class ProductController extends Controller
             
             return $this->success(null, 'Produk berhasil dihapus', 200);
             
+        } catch (\Illuminate\Database\QueryException $e) {
+            if ($e->getCode() == 23000) {
+                return $this->error('Produk ini tidak bisa dihapus karena masih memiliki riwayat laporan barang rusak terkait.', null, 422);
+            }
+            $this->logger->error('Delete product query error: ' . $e->getMessage());
+            return $this->error('Terjadi kesalahan database saat menghapus produk', null, 500);
         } catch (\Exception $e) {
             $this->logger->error('Delete product error: ' . $e->getMessage());
             return $this->error('Terjadi kesalahan saat menghapus produk', null, 500);

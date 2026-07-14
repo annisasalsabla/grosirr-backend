@@ -413,7 +413,7 @@ class TransactionController extends Controller
             $query = Transaction::with(['details.product'])
                 ->where('cashier_id', $request->user()->id)
                 ->whereDate('created_at', $todayDate)
-                ->whereIn('payment_status', ['paid', 'partial', 'unpaid', 'pending']);
+                ->validSales();
                 
             // Tambahkan filter payment_method jika ada
             if ($request->has('payment_method') && $request->payment_method !== 'all' && $request->payment_method !== '') {
@@ -486,12 +486,15 @@ class TransactionController extends Controller
             $todaySummary = [
                 'total_transactions' => Transaction::where('cashier_id', $request->user()->id)
                     ->whereDate('created_at', $todayDate)
+                    ->validSales()
                     ->count(),
                 'total_omzet' => (float) Transaction::where('cashier_id', $request->user()->id)
                     ->whereDate('created_at', $todayDate)
+                    ->validSales()
                     ->sum('total_amount'),
                 'total_kas_diterima' => (float) Transaction::where('cashier_id', $request->user()->id)
                     ->whereDate('created_at', $todayDate)
+                    ->validSales()
                     ->sum(\Illuminate\Support\Facades\DB::raw('CASE WHEN paid_amount > total_amount THEN total_amount ELSE paid_amount END')),
                 'paid_count' => Transaction::where('cashier_id', $request->user()->id)
                     ->whereDate('created_at', $todayDate)
