@@ -115,12 +115,12 @@
                 <td><strong>{{ $summary['total_profit_formatted'] ?? ('Rp ' . number_format($summary['total_profit'] ?? 0, 0, ',', '.')) }}</strong></td>
             </tr>
             <tr>
-                <td>&nbsp;&nbsp;↳ Laba Terealisasi</td>
+                <td>&nbsp;&nbsp;- Laba Terealisasi</td>
                 <td>:</td>
                 <td>{{ $summary['realized_profit_formatted'] ?? ('Rp ' . number_format($summary['realized_profit'] ?? 0, 0, ',', '.')) }}</td>
             </tr>
             <tr>
-                <td>&nbsp;&nbsp;↳ Laba Tertunda</td>
+                <td>&nbsp;&nbsp;- Laba Tertunda</td>
                 <td>:</td>
                 <td>{{ $summary['pending_profit_formatted'] ?? ('Rp ' . number_format($summary['pending_profit'] ?? 0, 0, ',', '.')) }}</td>
             </tr>

@@ -86,6 +86,9 @@ class LoginController extends Controller
             $user = $request->user();
             $user->currentAccessToken()->delete();
 
+            // Hapus semua FCM token milik user yang logout agar tidak mendapat push
+            \App\Models\FcmToken::where('user_id', $user->id)->delete();
+
             Cache::forget("user_{$user->id}");
 
             $this->logger->info('User logout berhasil', [

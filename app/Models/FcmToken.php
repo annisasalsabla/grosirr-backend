@@ -25,12 +25,14 @@ class FcmToken extends Model
             ->where('user_id', '!=', $userId)
             ->delete();
 
-        // Update or create token for current user
+        // Update or create token for current user based on device_type
         return self::updateOrCreate(
-            ['fcm_token' => $fcmToken],
             [
                 'user_id' => $userId,
                 'device_type' => $deviceType,
+            ],
+            [
+                'fcm_token' => $fcmToken,
             ]
         );
     }

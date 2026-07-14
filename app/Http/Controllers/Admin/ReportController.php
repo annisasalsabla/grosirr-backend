@@ -1116,7 +1116,7 @@ class ReportController extends Controller
 
     protected function getProfitReportData(Request $request)
     {
-        $query = Profit::with(['product', 'transaction'])
+        $query = Profit::with(['product', 'transaction.details'])
             ->whereHas('transaction', function ($q) {
                 $q->validSales();
             });
@@ -1151,12 +1151,14 @@ class ReportController extends Controller
 
         // Group by date for summary view
         $grouped = $profits->groupBy('profit_date')->map(function ($items, $date) {
-            $totalOmzet = $items->sum(function ($p) {
-                return $p->quantity_sold * $p->product->selling_price;
-            });
-            $totalModal = $items->sum(function ($p) {
-                return $p->quantity_sold * $p->product->purchase_price;
-            });
+            $totalOmzet = 0;
+            $totalModal = 0;
+            foreach ($items as $p) {
+                $detail = $this->profitService->getTransactionDetail($p);
+                $totalOmzet += $detail ? ($detail->price * $p->quantity_sold) : 0;
+                $totalModal += $detail ? ($detail->purchase_price * $p->quantity_sold) : 0;
+            }
+            
             $totalProfit = $items->sum('profit_amount');
 
             $realizedProfit = $items->sum(function ($p) {
@@ -1183,21 +1185,33 @@ class ReportController extends Controller
             ];
         })->values();
 
+        $totalPendapatanKotor = $this->profitService->calculateTotalOmzet($profits);
+        $totalBeban = $this->profitService->calculateTotalBeban($profits);
+
         $summary = [
             'total_profit' => $grouped->sum('profit_amount'),
             'realized_profit' => $grouped->sum('realized_profit'),
             'pending_profit' => $grouped->sum('pending_profit'),
+            'total_pendapatan_kotor' => $totalPendapatanKotor,
+            'total_beban' => $totalBeban,
         ];
 
         $profitsDetail = $profits->map(function ($p) {
             $isPending = $p->is_from_receivable && in_array($p->receivable_status, ['unpaid', 'partial']);
+            
+            $detail = $this->profitService->getTransactionDetail($p);
+            $totalPenjualan = $detail ? (float) ($detail->price * $p->quantity_sold) : 0.0;
+            $totalModal = $detail ? (float) ($detail->purchase_price * $p->quantity_sold) : 0.0;
+
             return [
                 'date' => date('d/m/Y', strtotime($p->profit_date)),
                 'invoice_number' => $p->transaction->invoice_number ?? '-',
                 'product_name' => $p->product->name ?? '-',
                 'qty' => $p->quantity_sold,
                 'profit' => (float) $p->profit_amount,
-                'status_label' => $isPending ? 'Tertunda' : 'Terealisasi'
+                'status_label' => $isPending ? 'Tertunda' : 'Terealisasi',
+                'total_penjualan' => $totalPenjualan,
+                'total_modal' => $totalModal,
             ];
         });
 
