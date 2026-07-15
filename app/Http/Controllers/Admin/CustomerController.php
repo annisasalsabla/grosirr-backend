@@ -120,8 +120,7 @@ class CustomerController extends Controller
             $customer->total_receivable = $customer->getTotalReceivable();
 
             // Ambil riwayat piutang customer
-            $receivables = Receivable::where('customer_name', $customer->name)
-                ->orWhere('customer_phone', $customer->phone)
+            $receivables = Receivable::where('customer_id', $customer->id)
                 ->with('transaction')
                 ->orderBy('created_at', 'desc')
                 ->limit(10)
