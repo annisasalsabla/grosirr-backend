@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use App\Console\Commands\SendDailyReceivableNotification;
 use App\Console\Commands\CheckLowStock;
+use App\Console\Commands\CheckAdminNotifications;
 use App\Http\Middleware\RoleMiddleware;
 use App\Http\Middleware\CheckRole;
 use App\Services\SerenityLoggerService;
@@ -145,6 +146,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withCommands([
         SendDailyReceivableNotification::class,
         CheckLowStock::class,
+        CheckAdminNotifications::class,
     ])
     ->withSchedule(function (Schedule $schedule) {
         $schedule->command('receivable:send-daily-notification')
@@ -156,5 +158,10 @@ return Application::configure(basePath: dirname(__DIR__))
             ->hourly()
             ->withoutOverlapping()
             ->appendOutputTo(storage_path('logs/schedule-stock.log'));
+            
+        $schedule->command('app:check-admin-notifications')
+            ->twiceDaily(8, 15)
+            ->withoutOverlapping()
+            ->appendOutputTo(storage_path('logs/schedule-admin-notifications.log'));
     })
     ->create();
