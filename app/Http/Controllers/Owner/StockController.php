@@ -30,6 +30,7 @@ class StockController extends Controller
             
             $stocks = Cache::remember($cacheKey, 300, function () use ($perPage) {
                 return Stock::with(['product', 'user'])
+                    ->where('type', 'in')
                     ->orderBy('created_at', 'desc')
                     ->paginate($perPage);
             });
@@ -59,7 +60,7 @@ class StockController extends Controller
             $perPage = $request->input('per_page', 10);
             $productId = $request->input('product_id');
             
-            $query = Stock::with(['product', 'user']);
+            $query = Stock::with(['product', 'user'])->where('type', 'in');
             
             if ($productId) {
                 $query->where('product_id', $productId);

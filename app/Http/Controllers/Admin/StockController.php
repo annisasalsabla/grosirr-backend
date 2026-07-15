@@ -47,7 +47,7 @@ class StockController extends Controller
                 'supplier_id' => 'required_without:bad_product_id|exists:suppliers,id',
                 'purchase_price' => 'required_without:bad_product_id|numeric|min:0',
                 'is_credit' => 'boolean',
-                'due_date' => 'required_if:is_credit,true|date|after:today',
+                'due_date' => 'required_if:is_credit,true|date|after_or_equal:today',
                 'bukti_pembelian' => 'required_without:bad_product_id|image|max:2048', // Opsional jika kompensasi
                 'notes' => 'nullable|string|max:500',
                 'tanggal_kompensasi' => 'nullable|date|before_or_equal:today',
@@ -211,7 +211,8 @@ class StockController extends Controller
             $perPage = $request->input('per_page', 10);
 
             // Filter tanggal: ?date=YYYY-MM-DD atau hari ini jika tidak ada
-            $query = Stock::with(['product', 'user', 'supplier']);
+            $query = Stock::with(['product', 'user', 'supplier'])
+                ->where('type', 'in');
 
             if ($request->has('date')) {
                 $query->whereDate('created_at', $request->date);
