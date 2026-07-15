@@ -189,6 +189,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::delete('/customers/{id}', [App\Http\Controllers\Admin\CustomerController::class, 'destroy']);
         Route::post('/customers/{id}/approve-member', [App\Http\Controllers\Admin\CustomerController::class, 'approveMember']);
         Route::post('/customers/{id}/reject-member', [App\Http\Controllers\Admin\CustomerController::class, 'rejectMember']);
+        Route::post('/customers/{id}/deactivate-member', [App\Http\Controllers\Admin\CustomerController::class, 'deactivateMember']);
 
         // ==================== RECEIVABLES (PIUTANG CUSTOMER) ====================
         // Daftar piutang

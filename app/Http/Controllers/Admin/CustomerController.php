@@ -459,6 +459,58 @@ class CustomerController extends Controller
     }
 
     /**
+     * Deactivate a member (change to umum) if no active receivables
+     * POST /api/admin/customers/{id}/deactivate-member
+     */
+    public function deactivateMember(Request $request, $id)
+    {
+        DB::beginTransaction();
+        try {
+            $customer = Customer::where('id', $id)->lockForUpdate()->firstOrFail();
+
+            if ($customer->member_status !== 'member') {
+                DB::rollBack();
+                return $this->error('Pelanggan ini bukan member aktif.', null, 400);
+            }
+
+            // Cek apakah ada piutang aktif
+            $unpaidReceivables = Receivable::where('customer_id', $customer->id)
+                ->where('status', '!=', 'paid')
+                ->get();
+
+            if ($unpaidReceivables->count() > 0) {
+                $totalSisaPiutang = $unpaidReceivables->sum('remaining_debt');
+                DB::rollBack();
+                return $this->error(
+                    'Tidak bisa menonaktifkan member ini karena masih memiliki piutang aktif sebesar Rp ' . number_format($totalSisaPiutang, 0, ',', '.') . '. Selesaikan piutang terlebih dahulu.', 
+                    null, 
+                    400
+                );
+            }
+
+            // Jika tidak ada piutang, proses nonaktif
+            $customer->update([
+                'member_status' => 'umum',
+                'member_since' => null
+                // phone dan address TIDAK dihapus sesuai instruksi
+            ]);
+
+            DB::commit();
+
+            $this->logger->info('Member deactivated', [
+                'customer_id' => $customer->id,
+                'admin_id' => $request->user()->id
+            ]);
+
+            return $this->success($customer, 'Status member berhasil dinonaktifkan (kembali ke umum)', 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $this->logger->error('Deactivate member error: ' . $e->getMessage());
+            return $this->error('Terjadi kesalahan saat menonaktifkan member', null, 500);
+        }
+    }
+
+    /**
      * Get duplicate candidates for ambiguous customer
      * GET /api/admin/customers/{id}/merge-candidates
      */
