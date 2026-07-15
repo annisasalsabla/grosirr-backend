@@ -152,7 +152,7 @@ class DashboardController extends Controller
             // ========== 8. TRANSAKSI TERAKHIR (5 Terbaru - Semua Waktu) - PAID only ==========
             $lastTransactions = Transaction::query()
                 ->whereIn('payment_status', ['paid', 'partial', 'unpaid', 'pending'])
-                ->with('customer')
+                ->with(['customer', 'details.product'])
                 ->orderByDesc('created_at')
                 ->limit(5)
                 ->get()
@@ -164,6 +164,10 @@ class DashboardController extends Controller
                         $statusLabel = $tx->payment_status === 'paid' ? 'Lunas' : 'Pending';
                     }
                     
+                    $items = $tx->details->map(function ($detail) {
+                        return $detail->product ? $detail->product->name : 'Produk Tidak Dikenal';
+                    })->toArray();
+                    
                     return [
                         'id' => $tx->id,
                         'waktu' => $tx->created_at->format('H:i'),
@@ -172,7 +176,8 @@ class DashboardController extends Controller
                         'total' => (float) $tx->total_amount,
                         'total_formatted' => 'Rp ' . number_format($tx->total_amount, 0, ',', '.'),
                         'metode_bayar' => $tx->payment_method ?? 'Tunai',
-                        'status_label' => $statusLabel
+                        'status_label' => $statusLabel,
+                        'items' => $items
                     ];
                 });
 
