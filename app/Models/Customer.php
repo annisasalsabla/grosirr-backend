@@ -45,5 +45,27 @@ class Customer extends Model
             ->where('payment_method', 'receivable')
             ->where('payment_status', 'unpaid')
             ->sum('total_amount');
+    public static function evaluateMemberCandidacy($customerId)
+    {
+        $customer = self::where('id', $customerId)->lockForUpdate()->first();
+        
+        if ($customer && $customer->member_status === 'umum') {
+            $stats = \Illuminate\Support\Facades\DB::table('transactions')
+                ->where('customer_id', $customer->id)
+                ->selectRaw('COUNT(*) as total_transaksi, SUM(total_amount) as total_belanja')
+                ->first();
+
+            $totalTransaksi = (int) $stats->total_transaksi;
+            $totalBelanja = (float) ($stats->total_belanja ?? 0);
+
+            if ($totalTransaksi >= 5 || $totalBelanja >= 500000) {
+                $customer->update([
+                    'member_status' => 'calon_member',
+                    'calon_member_since' => now(),
+                ]);
+                return true;
+            }
+        }
+        return false;
     }
 }

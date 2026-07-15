@@ -419,6 +419,35 @@ class CustomerController extends Controller
     }
 
     /**
+     * Get duplicate candidates for ambiguous customer
+     * GET /api/admin/customers/{id}/merge-candidates
+     */
+    public function getMergeCandidates($id)
+    {
+        try {
+            $customer = Customer::findOrFail($id);
+            
+            if (!empty($customer->phone)) {
+                return $this->success([], 'Pelanggan sudah memiliki No HP terverifikasi, bukan entitas ambigu.', 200);
+            }
+            
+            $normalizedName = strtolower(trim($customer->name));
+            
+            $candidates = Customer::whereRaw('LOWER(TRIM(name)) = ?', [$normalizedName])
+                ->whereNull('phone')
+                ->where('id', '!=', $customer->id)
+                ->where('member_status', '!=', 'member')
+                ->get();
+                
+            return $this->success($candidates, 'Kandidat merge berhasil dimuat', 200);
+            
+        } catch (\Exception $e) {
+            $this->logger->error('Get merge candidates error: ' . $e->getMessage());
+            return $this->error('Terjadi kesalahan saat memuat daftar kandidat', null, 500);
+        }
+    }
+
+    /**
      * Merge duplicate customer
      * POST /api/admin/customers/{id}/merge
      */
@@ -441,14 +470,23 @@ class CustomerController extends Controller
             $targetCustomer = $first->id == $id ? $first : $second;
             $sourceCustomer = $first->id == $id ? $second : $first;
             
+            if (strtolower(trim($targetCustomer->name)) !== strtolower(trim($sourceCustomer->name))) {
+                DB::rollBack();
+                return $this->error('Nama pelanggan target dan sumber tidak cocok. Tidak dapat menggabungkan entitas yang berbeda.', null, 400);
+            }
+
             if ($sourceCustomer->member_status === 'member') {
                 DB::rollBack();
-                return $this->error('Pelanggan yang akan digabung sudah berstatus Member sah. Tidak dapat digabungkan.', null, 400);
+                return $this->error('Pelanggan sumber sudah berstatus Member sah. Tidak dapat digabungkan.', null, 400);
+            }
+            if ($targetCustomer->member_status === 'member') {
+                DB::rollBack();
+                return $this->error('Pelanggan target sudah berstatus Member sah. Penggabungan hanya berlaku antar entitas ambigu/belum terverifikasi.', null, 400);
             }
             
             if (!empty($sourceCustomer->phone)) {
                 DB::rollBack();
-                return $this->error('Pelanggan sumber (merge_from_id) sudah memiliki Nomor HP terverifikasi. Merge hanya untuk kandidat ambigu (tanpa No HP).', null, 400);
+                return $this->error('Pelanggan sumber (merge_from_id) sudah memiliki Nomor HP terverifikasi. Merge hanya untuk membuang entitas ambigu (tanpa No HP).', null, 400);
             }
             
             \App\Models\Transaction::where('customer_id', $sourceCustomer->id)->update(['customer_id' => $targetCustomer->id]);
@@ -456,11 +494,16 @@ class CustomerController extends Controller
             
             $sourceCustomer->delete();
             
+            if ($targetCustomer->member_status === 'umum') {
+                \App\Models\Customer::evaluateMemberCandidacy($targetCustomer->id);
+            }
+
             if (empty($targetCustomer->phone)) {
                 $normalizedName = strtolower(trim($targetCustomer->name));
                 $collisionCount = Customer::whereRaw('LOWER(TRIM(name)) = ?', [$normalizedName])
                     ->whereNull('phone')
                     ->where('id', '!=', $targetCustomer->id)
+                    ->where('member_status', '!=', 'member')
                     ->count();
                     
                 if ($collisionCount === 0) {
@@ -473,6 +516,8 @@ class CustomerController extends Controller
             }
             
             DB::commit();
+            
+            $targetCustomer->refresh();
             return $this->success($targetCustomer, 'Data pelanggan berhasil digabung', 200);
             
         } catch (\Exception $e) {
