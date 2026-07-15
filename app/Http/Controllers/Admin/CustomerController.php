@@ -345,6 +345,18 @@ class CustomerController extends Controller
 
             $customers = $query->orderBy('name')->paginate($perPage);
 
+            // Hitung statistik transaksi secara real-time (konsisten dengan calonMember)
+            $customers->getCollection()->transform(function ($customer) {
+                $stats = DB::table('transactions')
+                    ->where('customer_id', $customer->id)
+                    ->selectRaw('COUNT(*) as total_transaksi, SUM(total_amount) as total_belanja')
+                    ->first();
+
+                $customer->total_transaksi = (int) $stats->total_transaksi;
+                $customer->total_belanja = (float) ($stats->total_belanja ?? 0);
+                return $customer;
+            });
+
             return $this->success($customers, 'Daftar member berhasil dimuat', 200);
 
         } catch (\Exception $e) {
