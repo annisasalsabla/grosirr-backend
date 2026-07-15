@@ -10,13 +10,29 @@ try {
     $budi_a = Customer::create(['name' => 'Budi', 'phone' => null, 'member_status' => 'umum', 'is_ambiguous' => true]);
     $budi_b = Customer::create(['name' => 'Budi', 'phone' => '0812345', 'member_status' => 'member', 'is_ambiguous' => false]);
     
+    $admin = \App\Models\User::where('role', 'admin')->first();
+
+    // Buat transaksi dummy dulu untuk memenuhi FK transaction_id di receivables
+    $trx = \App\Models\Transaction::create([
+        'invoice_number' => 'TRX-COL-' . uniqid(),
+        'cashier_id' => $admin->id,
+        'customer_id' => $budi_a->id,
+        'payment_method' => 'receivable',
+        'payment_status' => 'unpaid',
+        'total_amount' => 100000,
+        'paid_amount' => 0,
+        'change_due' => 0,
+    ]);
+
     // Injeksi piutang (Receivable) untuk Budi A saja
     Receivable::insert([
+        'transaction_id' => $trx->id,
         'customer_id' => $budi_a->id,
-        'customer_name' => $budi_a->name, // Mensimulasikan data lama yang masih menyimpan nama
-        'customer_phone' => null,
-        'amount' => 100000,
-        'remaining_amount' => 100000,
+        'customer_name' => $budi_a->name,
+        'customer_phone' => '-',
+        'customer_address' => '-',
+        'total_debt' => 100000,
+        'remaining_debt' => 100000,
         'status' => 'unpaid',
         'due_date' => now()->addDays(7),
         'created_at' => now(),
