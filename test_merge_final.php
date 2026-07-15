@@ -65,6 +65,7 @@ try {
     for($i = 0; $i < 6; $i++) {
         Transaction::insert([
             'invoice_number' => 'TEST-MERGE-' . uniqid(),
+            'cashier_id' => $admin->id,
             'customer_id' => $c4_source->id,
             'payment_method' => 'cash',
             'payment_status' => 'paid',
