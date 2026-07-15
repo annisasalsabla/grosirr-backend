@@ -64,6 +64,7 @@ try {
     // Injeksi 6 transaksi ke SOURCE (agar saat merge, target terima >5 trx)
     for($i = 0; $i < 6; $i++) {
         Transaction::insert([
+            'invoice_number' => 'TEST-MERGE-' . uniqid(),
             'customer_id' => $c4_source->id,
             'payment_method' => 'cash',
             'payment_status' => 'paid',
