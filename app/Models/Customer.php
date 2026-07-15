@@ -11,7 +11,7 @@ class Customer extends Model
 
     protected $fillable = [
         'name', 'phone', 'address', 'member_status',
-        'calon_member_since', 'member_since', 'rejection_note'
+        'calon_member_since', 'member_since', 'rejection_note', 'is_ambiguous'
     ];
 
     protected $casts = [
