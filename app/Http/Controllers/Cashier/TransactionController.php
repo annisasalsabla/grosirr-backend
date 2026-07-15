@@ -181,16 +181,58 @@ class TransactionController extends Controller
             $feeAmount = $totalAmount * ($feePercentage / 100);
 
             // Logika pencarian/pembuatan customer otomatis Fitur 1
-            if ($customerId === null && $request->filled('customer_phone')) {
+            if ($customerId === null && empty($request->customer_phone) && $request->filled('customer_name')) {
+                $customerName = trim($request->customer_name);
+                $normalizedName = strtolower($customerName);
+                
+                $lock = \Illuminate\Support\Facades\Cache::lock('customer_name_lock_' . md5($normalizedName), 5);
+                
+                try {
+                    $lock->block(5);
+                    
+                    $candidates = Customer::whereRaw('LOWER(TRIM(name)) = ?', [$normalizedName])
+                        ->whereNull('phone')
+                        ->lockForUpdate()
+                        ->get();
+                        
+                    if ($candidates->count() === 1) {
+                        $customerId = $candidates->first()->id;
+                    } elseif ($candidates->count() === 0) {
+                        $customer = Customer::create([
+                            'name' => $customerName,
+                            'phone' => null,
+                            'member_status' => 'umum',
+                            'is_ambiguous' => false
+                        ]);
+                        $customerId = $customer->id;
+                    } else {
+                        // >= 2 collision
+                        $customer = Customer::create([
+                            'name' => $customerName,
+                            'phone' => null,
+                            'member_status' => 'umum',
+                            'is_ambiguous' => true
+                        ]);
+                        $customerId = $customer->id;
+                        
+                        Customer::whereIn('id', $candidates->pluck('id'))
+                            ->where('is_ambiguous', false)
+                            ->update(['is_ambiguous' => true]);
+                    }
+                    
+                } catch (\Illuminate\Contracts\Cache\LockTimeoutException $e) {
+                    DB::rollBack();
+                    return $this->error('Sistem sedang memproses transaksi lain dengan nama pelanggan yang sama. Silakan coba lagi dalam beberapa detik.', null, 409);
+                } finally {
+                    $lock?->release();
+                }
+            } elseif ($customerId === null && $request->filled('customer_phone')) {
                 $phone = $request->customer_phone;
                 
-                // 2a. Cari customer existing
                 $customer = Customer::where('phone', $phone)->first();
-                
                 if ($customer) {
                     $customerId = $customer->id;
                 } else {
-                    // 2c. Buat customer baru
                     try {
                         $customerName = $request->customer_name ?: 'Pelanggan Umum';
                         
@@ -198,10 +240,10 @@ class TransactionController extends Controller
                             'name' => $customerName,
                             'phone' => $phone,
                             'member_status' => 'umum',
+                            'is_ambiguous' => false
                         ]);
                         $customerId = $customer->id;
                     } catch (\Illuminate\Database\QueryException $e) {
-                        // 2d. Tangani race condition di MySQL, PostgreSQL, dan SQLite
                         if (
                             in_array($e->getCode(), ['23000', '23505']) 
                             || str_contains($e->getMessage(), '1062')

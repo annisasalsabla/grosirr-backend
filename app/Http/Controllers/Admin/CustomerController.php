@@ -332,17 +332,40 @@ class CustomerController extends Controller
     {
         DB::beginTransaction();
         try {
-            // Lock baris untuk mencegah double click/race condition approval
             $customer = Customer::where('id', $id)->lockForUpdate()->firstOrFail();
 
             if ($customer->member_status !== 'calon_member') {
                 DB::rollBack();
-                return $this->error('Pelanggan ini bukan calon member / sudah disetujui sebelumnya.', null, 400);
+                return $this->error('Pelanggan ini bukan calon member / sudah diproses.', null, 400);
+            }
+
+            $rules = [];
+            
+            if (empty($customer->phone)) {
+                $rules['phone'] = 'required|string|max:15|unique:customers,phone,' . $id;
+            } else {
+                $rules['phone'] = 'nullable|string|max:15|unique:customers,phone,' . $id;
+            }
+
+            if (empty($customer->address)) {
+                $rules['address'] = 'required|string';
+            } else {
+                $rules['address'] = 'nullable|string';
+            }
+
+            $validator = \Illuminate\Support\Facades\Validator::make($request->all(), $rules);
+
+            if ($validator->fails()) {
+                DB::rollBack();
+                return $this->validationError($validator->errors(), 'Data tidak lengkap untuk persetujuan member');
             }
 
             $customer->update([
                 'member_status' => 'member',
                 'member_since' => now(),
+                'phone' => $request->input('phone', $customer->phone),
+                'address' => $request->input('address', $customer->address),
+                'is_ambiguous' => false, // Set to false if approved
             ]);
 
             DB::commit();
@@ -361,22 +384,13 @@ class CustomerController extends Controller
     }
 
     /**
-     * Reject customer member request
-     * POST /api/admin/customers/{id}/reject-member
+     * Dismiss customer candidate status
+     * POST /api/admin/customers/{id}/dismiss-candidate
      */
-    public function rejectMember(Request $request, $id)
+    public function dismissCandidate(Request $request, $id)
     {
-        try {
-            $request->validate([
-                'rejection_note' => 'nullable|string|max:500',
-            ]);
-        } catch (ValidationException $e) {
-            return $this->validationError($e->errors(), 'Catatan penolakan tidak valid');
-        }
-
         DB::beginTransaction();
         try {
-            // Lock baris untuk mencegah double click/race condition
             $customer = Customer::where('id', $id)->lockForUpdate()->firstOrFail();
 
             if ($customer->member_status !== 'calon_member') {
@@ -385,22 +399,85 @@ class CustomerController extends Controller
             }
 
             $customer->update([
-                'member_status' => 'ditolak',
-                'rejection_note' => $request->rejection_note,
+                'member_status' => 'umum',
             ]);
 
             DB::commit();
 
-            $this->logger->info('Customer member request rejected', [
+            $this->logger->info('Customer candidate dismissed', [
                 'customer_id' => $customer->id,
                 'admin_id' => $request->user()->id
             ]);
 
-            return $this->success($customer, 'Pendaftaran member berhasil ditolak', 200);
+            return $this->success($customer, 'Status calon member berhasil dihentikan (kembali ke umum)', 200);
         } catch (\Exception $e) {
             DB::rollBack();
-            $this->logger->error('Reject member error: ' . $e->getMessage());
-            return $this->error('Terjadi kesalahan saat menolak member', null, 500);
+            $this->logger->error('Dismiss candidate error: ' . $e->getMessage());
+            return $this->error('Terjadi kesalahan saat menghentikan calon member', null, 500);
+        }
+    }
+
+    /**
+     * Merge duplicate customer
+     * POST /api/admin/customers/{id}/merge
+     */
+    public function merge(Request $request, $id)
+    {
+        $request->validate(['merge_from_id' => 'required|exists:customers,id']);
+        
+        if ($id == $request->merge_from_id) {
+            return $this->error('ID pelanggan target dan sumber tidak boleh sama.', null, 400);
+        }
+
+        DB::beginTransaction();
+        try {
+            $ids = [(int) $id, (int) $request->merge_from_id];
+            sort($ids);
+            
+            $first = Customer::where('id', $ids[0])->lockForUpdate()->firstOrFail();
+            $second = Customer::where('id', $ids[1])->lockForUpdate()->firstOrFail();
+            
+            $targetCustomer = $first->id == $id ? $first : $second;
+            $sourceCustomer = $first->id == $id ? $second : $first;
+            
+            if ($sourceCustomer->member_status === 'member') {
+                DB::rollBack();
+                return $this->error('Pelanggan yang akan digabung sudah berstatus Member sah. Tidak dapat digabungkan.', null, 400);
+            }
+            
+            if (!empty($sourceCustomer->phone)) {
+                DB::rollBack();
+                return $this->error('Pelanggan sumber (merge_from_id) sudah memiliki Nomor HP terverifikasi. Merge hanya untuk kandidat ambigu (tanpa No HP).', null, 400);
+            }
+            
+            \App\Models\Transaction::where('customer_id', $sourceCustomer->id)->update(['customer_id' => $targetCustomer->id]);
+            Receivable::where('customer_id', $sourceCustomer->id)->update(['customer_id' => $targetCustomer->id]);
+            
+            $sourceCustomer->delete();
+            
+            if (empty($targetCustomer->phone)) {
+                $normalizedName = strtolower(trim($targetCustomer->name));
+                $collisionCount = Customer::whereRaw('LOWER(TRIM(name)) = ?', [$normalizedName])
+                    ->whereNull('phone')
+                    ->where('id', '!=', $targetCustomer->id)
+                    ->count();
+                    
+                if ($collisionCount === 0) {
+                    $targetCustomer->update(['is_ambiguous' => false]);
+                } else {
+                    $targetCustomer->update(['is_ambiguous' => true]);
+                }
+            } else {
+                $targetCustomer->update(['is_ambiguous' => false]);
+            }
+            
+            DB::commit();
+            return $this->success($targetCustomer, 'Data pelanggan berhasil digabung', 200);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $this->logger->error('Merge customer error: ' . $e->getMessage());
+            return $this->error('Terjadi kesalahan saat menggabungkan pelanggan', null, 500);
         }
     }
 }
