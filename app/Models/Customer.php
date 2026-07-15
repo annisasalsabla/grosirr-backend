@@ -45,6 +45,8 @@ class Customer extends Model
             ->where('payment_method', 'receivable')
             ->where('payment_status', 'unpaid')
             ->sum('total_amount');
+    }
+
     public static function evaluateMemberCandidacy($customerId)
     {
         $customer = self::where('id', $customerId)->lockForUpdate()->first();
