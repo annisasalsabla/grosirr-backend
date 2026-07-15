@@ -173,14 +173,20 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/payables/{id}/pay', [App\Http\Controllers\Admin\PayableController::class, 'pay']);
         
         // ==================== CUSTOMERS (KELOLA PELANGGAN) ====================
+        // Specific Routes (Harus di atas wildcard {id})
         Route::get('/customers/calon-member', [App\Http\Controllers\Admin\CustomerController::class, 'calonMember']);
+        Route::get('/customers/member', [App\Http\Controllers\Admin\CustomerController::class, 'member']);
+        Route::get('/customers/with-receivables', [App\Http\Controllers\Admin\CustomerController::class, 'withReceivables']);
+        Route::get('/customers/search', [App\Http\Controllers\Admin\CustomerController::class, 'search']);
+        Route::get('/customers/{id}/merge-candidates', [App\Http\Controllers\Admin\CustomerController::class, 'getMergeCandidates']);
+        Route::post('/customers/{id}/merge', [App\Http\Controllers\Admin\CustomerController::class, 'merge']);
+
+        // General CRUD & Status Actions
         Route::get('/customers', [App\Http\Controllers\Admin\CustomerController::class, 'index']);
         Route::post('/customers', [App\Http\Controllers\Admin\CustomerController::class, 'store']);
         Route::get('/customers/{id}', [App\Http\Controllers\Admin\CustomerController::class, 'show']);
         Route::put('/customers/{id}', [App\Http\Controllers\Admin\CustomerController::class, 'update']);
         Route::delete('/customers/{id}', [App\Http\Controllers\Admin\CustomerController::class, 'destroy']);
-        Route::get('/customers/with-receivables', [App\Http\Controllers\Admin\CustomerController::class, 'withReceivables']);
-        Route::get('/customers/search', [App\Http\Controllers\Admin\CustomerController::class, 'search']);
         Route::post('/customers/{id}/approve-member', [App\Http\Controllers\Admin\CustomerController::class, 'approveMember']);
         Route::post('/customers/{id}/reject-member', [App\Http\Controllers\Admin\CustomerController::class, 'rejectMember']);
 

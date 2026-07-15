@@ -325,6 +325,35 @@ class CustomerController extends Controller
     }
 
     /**
+     * Get list of approved members
+     * GET /api/admin/customers/member
+     */
+    public function member(Request $request)
+    {
+        try {
+            $perPage = $request->input('per_page', 10);
+            $search = $request->input('search');
+
+            $query = Customer::where('member_status', 'member');
+            
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%");
+                });
+            }
+
+            $customers = $query->orderBy('name')->paginate($perPage);
+
+            return $this->success($customers, 'Daftar member berhasil dimuat', 200);
+
+        } catch (\Exception $e) {
+            $this->logger->error('Get members error: ' . $e->getMessage());
+            return $this->error('Terjadi kesalahan saat memuat daftar member', null, 500);
+        }
+    }
+
+    /**
      * Approve customer to become a member
      * POST /api/admin/customers/{id}/approve-member
      */
