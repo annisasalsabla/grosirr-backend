@@ -17,6 +17,7 @@ class Customer extends Model
     protected $casts = [
         'calon_member_since' => 'datetime',
         'member_since' => 'datetime',
+        'is_ambiguous' => 'boolean',
     ];
 
     protected $appends = ['is_setia'];
