@@ -10,7 +10,7 @@ class ReceivablePayment extends Model
     use HasFactory;
 
     protected $fillable = [
-        'transaction_id', 'amount_paid', 'payment_channel', 'paid_at', 'midtrans_transaction_id', 'payment_date', 'bukti_pembayaran'
+        'transaction_id', 'amount_paid', 'payment_channel', 'paid_at', 'midtrans_transaction_id', 'payment_date', 'bukti_pembayaran', 'payment_fee_percentage', 'payment_fee_amount'
     ];
 
     protected $appends = ['bukti_pembayaran_url'];

@@ -28,8 +28,37 @@ trait SalesReportCalculator
         } else {
             // Omzet Kotor Global
             $omzetKotor = (float) (clone $validQuery)->sum('total_amount');
-            // Total Fee Global
+            // Total Fee Global (dari transaksi utama)
             $totalFee = (float) (clone $validQuery)->sum('payment_fee_amount');
+
+            // Tambahkan fee dari pembayaran cicilan (ReceivablePayment)
+            $receivableFeeQuery = \App\Models\ReceivablePayment::query();
+            
+            // Ekstrak filter tanggal dan metode pembayaran dari $validQuery
+            $wheres = $validQuery->getQuery()->wheres;
+            if (is_array($wheres)) {
+                foreach ($wheres as $where) {
+                    $col = $where['column'] ?? '';
+                    if ($col === 'tx_date') {
+                        if ($where['type'] === 'Basic') {
+                            $receivableFeeQuery->whereDate('payment_date', $where['operator'] ?? '=', $where['value']);
+                        } elseif ($where['type'] === 'Between') {
+                            $receivableFeeQuery->whereDate('payment_date', '>=', $where['values'][0])
+                                               ->whereDate('payment_date', '<=', $where['values'][1]);
+                        }
+                    } elseif ($col === 'payment_method') {
+                        if ($where['type'] === 'Basic') {
+                            $receivableFeeQuery->where('payment_channel', strtoupper($where['value']));
+                        } elseif ($where['type'] === 'In') {
+                            $mappedValues = array_map('strtoupper', $where['values']);
+                            $receivableFeeQuery->whereIn('payment_channel', $mappedValues);
+                        }
+                    }
+                }
+            }
+            
+            $receivableFee = (float) $receivableFeeQuery->sum('payment_fee_amount');
+            $totalFee += $receivableFee;
         }
 
         // Omzet Bersih: Omzet Kotor dikurangi Total Fee

@@ -143,8 +143,21 @@ class PaymentCallbackController extends Controller
      */
     private function processDownPayment(Transaction $transaction, string $midtransTransactionId): void
     {
+        // 1. IDEMPOTENCY GUARD: Cek apakah webhook ini sudah pernah diproses dan dicatat
+        $existingPayment = \App\Models\ReceivablePayment::where('midtrans_transaction_id', $midtransTransactionId)->first();
+        if ($existingPayment) {
+            $this->logger->warning('Midtrans webhook retry detected and skipped (Down Payment)', [
+                'transaction_id' => $transaction->id,
+                'midtrans_transaction_id' => $midtransTransactionId
+            ]);
+            return; // Hentikan proses, payment sudah tercatat sebelumnya
+        }
+
         // Ambil nilai DP sebelum field di-update
         $dpAmount = $transaction->down_payment_amount;
+
+        // 2. HITUNG FEE DARI NOMINAL YANG BENAR-BENAR DIBAYAR (DP)
+        $fee = \App\Services\PaymentFeeCalculator::calculate('midtrans_qris', $dpAmount);
 
         // Update status menjadi partial (sudah bayar DP)
         $transaction->payment_status = 'partial';
@@ -168,7 +181,7 @@ class PaymentCallbackController extends Controller
             ->where('is_from_receivable', true)
             ->update(['receivable_status' => 'partial']);
         
-        // Catat pembayaran DP ke riwayat cicilan piutang
+        // Catat pembayaran DP ke riwayat cicilan piutang (BESERTA FEE)
         ReceivablePayment::create([
             'transaction_id' => $transaction->id,
             'amount_paid' => $dpAmount,
@@ -176,6 +189,8 @@ class PaymentCallbackController extends Controller
             'paid_at' => now(),
             'payment_date' => now(),
             'midtrans_transaction_id' => $midtransTransactionId,
+            'payment_fee_percentage' => $fee['percentage'],
+            'payment_fee_amount' => $fee['amount'],
         ]);
         
         $this->logger->info('Down payment processed for installment', [
@@ -191,8 +206,21 @@ class PaymentCallbackController extends Controller
      */
     private function processFinalPayment(Transaction $transaction, string $midtransTransactionId): void
     {
+        // 1. IDEMPOTENCY GUARD: Cek apakah webhook ini sudah pernah diproses dan dicatat
+        $existingPayment = \App\Models\ReceivablePayment::where('midtrans_transaction_id', $midtransTransactionId)->first();
+        if ($existingPayment) {
+            $this->logger->warning('Midtrans webhook retry detected and skipped (Final Payment)', [
+                'transaction_id' => $transaction->id,
+                'midtrans_transaction_id' => $midtransTransactionId
+            ]);
+            return; // Hentikan proses, payment sudah tercatat sebelumnya
+        }
+
         // Ambil sisa piutang yang harus dibayar SEBELUM nilainya di-set ke 0
         $finalAmountPaid = $transaction->remaining_balance;
+
+        // 2. HITUNG FEE DARI NOMINAL YANG BENAR-BENAR DIBAYAR (SISA CICILAN)
+        $fee = \App\Services\PaymentFeeCalculator::calculate('midtrans_qris', $finalAmountPaid);
 
         // Update status transaksi menjadi paid (lunas)
         $transaction->payment_status = 'paid';
@@ -216,7 +244,7 @@ class PaymentCallbackController extends Controller
             ->where('is_from_receivable', true)
             ->update(['receivable_status' => 'paid']);
         
-        // Catat pembayaran final dengan nominal sisa cicilan
+        // Catat pembayaran final dengan nominal sisa cicilan (BESERTA FEE)
         ReceivablePayment::create([
             'transaction_id' => $transaction->id,
             'amount_paid' => $finalAmountPaid,
@@ -224,6 +252,8 @@ class PaymentCallbackController extends Controller
             'paid_at' => now(),
             'payment_date' => now(),
             'midtrans_transaction_id' => $midtransTransactionId,
+            'payment_fee_percentage' => $fee['percentage'],
+            'payment_fee_amount' => $fee['amount'],
         ]);
         
         $this->logger->info('Final payment processed for installment', [

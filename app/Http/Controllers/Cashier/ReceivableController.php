@@ -65,6 +65,11 @@ class ReceivableController extends Controller
             $paymentChannel = $request->input('payment_channel') ?? $request->input('payment_method');
             $paymentChannel = is_string($paymentChannel) ? strtolower($paymentChannel) : $paymentChannel;
 
+            // NORMALISASI KEY: Jika Flutter mengirim 'qris', ubah menjadi 'qris_statis'
+            if ($paymentChannel === 'qris') {
+                $paymentChannel = 'qris_statis';
+            }
+
             $enabledChannels = [];
             if (Setting::getBool('payment_method_cash', true)) {
                 $enabledChannels[] = 'cash';
@@ -79,7 +84,11 @@ class ReceivableController extends Controller
                 $enabledChannels[] = 'midtrans_qris';
             }
 
-            $request->merge(['payment_channel' => $paymentChannel]);
+            // Pastikan hasil normalisasi ditimpa ke dalam request agar validate() tidak jebol
+            $request->merge([
+                'payment_channel' => $paymentChannel,
+                'payment_method'  => $paymentChannel
+            ]);
 
             $request->validate([
                 'payment_channel' => 'nullable|in:' . implode(',', $enabledChannels),
@@ -173,6 +182,8 @@ class ReceivableController extends Controller
                 $transaction->payment_status = 'paid';
                 $transaction->save();
 
+                $fee = \App\Services\PaymentFeeCalculator::calculate('QRIS_STATIS', $amountPaid);
+
                 DB::table('receivable_payments')->insert([
                     'transaction_id' => $transaction->id,
                     'amount_paid' => $amountPaid,
@@ -181,6 +192,8 @@ class ReceivableController extends Controller
                     'payment_date' => $paymentDate,
                     'bukti_pembayaran' => $buktiPembayaranPath,
                     'cashier_id' => $request->user()->id,
+                    'payment_fee_percentage' => $fee['percentage'],
+                    'payment_fee_amount' => $fee['amount'],
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
@@ -219,12 +232,16 @@ class ReceivableController extends Controller
                 $transaction->payment_method = 'qris_biasa';
                 $transaction->save();
 
+                $fee = \App\Services\PaymentFeeCalculator::calculate('QRIS_BIASA', $amountPaid);
+
                 DB::table('receivable_payments')->insert([
                     'transaction_id' => $transaction->id,
                     'amount_paid' => $amountPaid,
                     'payment_channel' => 'QRIS_BIASA',
                     'paid_at' => $paymentDate,
                     'payment_date' => $paymentDate,
+                    'payment_fee_percentage' => $fee['percentage'],
+                    'payment_fee_amount' => $fee['amount'],
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
@@ -287,6 +304,8 @@ class ReceivableController extends Controller
                 }
 
                 // 3. Catat riwayat pembayaran ke receivable_payments
+                $fee = \App\Services\PaymentFeeCalculator::calculate($paymentChannel, $amountPaid);
+
                 DB::table('receivable_payments')->insert([
                     'transaction_id' => $transaction->id,
                     'amount_paid' => $amountPaid,
@@ -295,6 +314,8 @@ class ReceivableController extends Controller
                     'payment_date' => $paymentDate,
                     'bukti_pembayaran' => $buktiPembayaranPath,
                     'cashier_id' => $request->user()->id,
+                    'payment_fee_percentage' => $fee['percentage'],
+                    'payment_fee_amount' => $fee['amount'],
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);

@@ -123,6 +123,12 @@ class ReceivableController extends Controller
         DB::beginTransaction();
         
         try {
+            // NORMALISASI KEY: Jika Flutter mengirim 'qris', anggap sebagai 'qris_statis' 
+            // agar lolos validasi list piutang tanpa perlu membongkar UI kasir/flutter.
+            if ($request->input('payment_method') === 'qris') {
+                $request->merge(['payment_method' => 'qris_statis']);
+            }
+
             $enabledMethods = [];
             if (Setting::getBool('payment_method_cash', true)) $enabledMethods[] = 'cash';
             if (Setting::getBool('payment_method_transfer', true)) $enabledMethods[] = 'transfer';
@@ -175,6 +181,8 @@ class ReceivableController extends Controller
                 $buktiPath = CloudinaryHelper::upload($request->file('bukti_pembayaran'), 'bukti-pembayaran');
             }
 
+            $fee = \App\Services\PaymentFeeCalculator::calculate($paymentMethod, $request->payment_amount);
+
             ReceivablePayment::create([
                 'transaction_id' => $transaction->id,
                 'amount_paid' => $request->payment_amount,
@@ -183,6 +191,8 @@ class ReceivableController extends Controller
                 'payment_date' => $paymentDate,
                 'bukti_pembayaran' => $buktiPath,
                 'cashier_id' => $request->user()->id,
+                'payment_fee_percentage' => $fee['percentage'],
+                'payment_fee_amount' => $fee['amount'],
             ]);
 
             // Sinkronisasi Profit untuk transaksi dari receivable
@@ -234,6 +244,10 @@ class ReceivableController extends Controller
         DB::beginTransaction();
         
         try {
+            if ($request->input('payment_method') === 'qris') {
+                $request->merge(['payment_method' => 'qris_statis']);
+            }
+
             $enabledMethods = [];
             if (Setting::getBool('payment_method_cash', true)) $enabledMethods[] = 'cash';
             if (Setting::getBool('payment_method_transfer', true)) $enabledMethods[] = 'transfer';
@@ -297,6 +311,8 @@ class ReceivableController extends Controller
                     $buktiPath = CloudinaryHelper::upload($request->file('bukti_pembayaran'), 'bukti-pembayaran');
                 }
 
+                $fee = \App\Services\PaymentFeeCalculator::calculate($request->payment_method, $remainingBalance);
+
                 ReceivablePayment::create([
                     'transaction_id' => $transaction->id,
                     'amount_paid' => $remainingBalance,
@@ -305,6 +321,8 @@ class ReceivableController extends Controller
                     'payment_date' => $paymentDate,
                     'bukti_pembayaran' => $buktiPath,
                     'cashier_id' => $request->user()->id,
+                    'payment_fee_percentage' => $fee['percentage'],
+                    'payment_fee_amount' => $fee['amount'],
                 ]);
 
                 DB::commit();
