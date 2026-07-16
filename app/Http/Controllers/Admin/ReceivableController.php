@@ -544,6 +544,7 @@ class ReceivableController extends Controller
                         'payment_date_formatted' => $displayDate ? Carbon::parse($displayDate)->format('d/m/Y H:i:s') : '-',
                         'amount' => (float) $payment->amount_paid,
                         'amount_formatted' => 'Rp ' . number_format($payment->amount_paid, 0, ',', '.'),
+                        'bukti_pembayaran_url' => $payment->bukti_pembayaran_url,
                     ];
                 });
             }
