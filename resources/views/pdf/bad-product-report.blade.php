@@ -192,15 +192,35 @@
                 <td>{{ number_format($item->loss_amount, 0, ',', '.') }}</td>
                 <td>{{ $item->damage_reason }}</td>
                 <td style="text-align: center;">
-                    @if(!empty($item->image))
-                        @php
-                            $imagePath = storage_path('app/public/' . $item->image);
-                        @endphp
-                        @if(file_exists($imagePath))
-                            <img src="{{ $imagePath }}" class="img-doc">
-                        @else
-                            <span style="color: #999; font-size: 9px;">Tidak ada</span>
-                        @endif
+                    @php
+                        $imageBase64 = null;
+                        $mimeType = 'image/jpeg';
+                        
+                        // Gunakan image_url (accessor) yang sudah ada di model BadProduct
+                        $imageUrl = $item->image_url;
+                        
+                        if (!empty($imageUrl)) {
+                            // Deteksi MIME type dari ekstensi URL
+                            $lowerUrl = strtolower($imageUrl);
+                            if (str_ends_with($lowerUrl, '.png')) {
+                                $mimeType = 'image/png';
+                            } elseif (str_ends_with($lowerUrl, '.webp')) {
+                                $mimeType = 'image/webp';
+                            }
+                            
+                            try {
+                                $imageData = @file_get_contents($imageUrl);
+                                if ($imageData !== false) {
+                                    $imageBase64 = base64_encode($imageData);
+                                }
+                            } catch (\Exception $e) {
+                                $imageBase64 = null;
+                            }
+                        }
+                    @endphp
+                    
+                    @if($imageBase64)
+                        <img src="data:{{ $mimeType }};base64,{{ $imageBase64 }}" class="img-doc">
                     @else
                         <span style="color: #999; font-size: 9px;">Tidak ada</span>
                     @endif
