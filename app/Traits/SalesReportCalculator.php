@@ -39,17 +39,18 @@ trait SalesReportCalculator
             if (is_array($wheres)) {
                 foreach ($wheres as $where) {
                     $col = $where['column'] ?? '';
+                    $type = strtolower($where['type'] ?? '');
                     if ($col === 'tx_date') {
-                        if ($where['type'] === 'Basic') {
+                        if ($type === 'basic') {
                             $receivableFeeQuery->whereDate('payment_date', $where['operator'] ?? '=', $where['value']);
-                        } elseif ($where['type'] === 'Between') {
+                        } elseif ($type === 'between') {
                             $receivableFeeQuery->whereDate('payment_date', '>=', $where['values'][0])
                                                ->whereDate('payment_date', '<=', $where['values'][1]);
                         }
                     } elseif ($col === 'payment_method') {
-                        if ($where['type'] === 'Basic') {
+                        if ($type === 'basic') {
                             $receivableFeeQuery->where('payment_channel', strtoupper($where['value']));
-                        } elseif ($where['type'] === 'In') {
+                        } elseif ($type === 'in') {
                             $mappedValues = array_map('strtoupper', $where['values']);
                             $receivableFeeQuery->whereIn('payment_channel', $mappedValues);
                         }
