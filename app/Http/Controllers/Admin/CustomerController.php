@@ -74,19 +74,27 @@ class CustomerController extends Controller
                 'phone' => 'required|string|max:15',
                 'address' => 'nullable|string',
                 'is_setia' => 'boolean',
+                'as_member' => 'boolean',
             ]);
 
-            // Ambil semua input kecuali is_setia dan kolom status keanggotaan
+            // Ambil semua input kecuali is_setia, as_member dan kolom status keanggotaan
             $data = $request->except([
                 'is_setia',
+                'as_member',
                 'member_status',
                 'calon_member_since',
                 'member_since',
                 'rejection_note'
             ]);
             
-            // Set default status baru sebagai 'umum'
-            $data['member_status'] = 'umum';
+            // Cek apakah parameter as_member diset true
+            if ($request->boolean('as_member')) {
+                $data['member_status'] = 'member';
+                $data['member_since'] = now();
+            } else {
+                // Set default status baru sebagai 'umum'
+                $data['member_status'] = 'umum';
+            }
 
             $customer = Customer::create($data);
 
