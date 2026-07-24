@@ -7,6 +7,9 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Pagination\Paginator;
 use App\Services\SerenityLoggerService;
 use App\Services\TelegramBotService;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -27,5 +30,18 @@ class AppServiceProvider extends ServiceProvider
 
         // Registrasi Transaction Observer
         \App\Models\Transaction::observe(\App\Observers\TransactionObserver::class);
+        
+        // Define Rate Limiters (Dipindahkan dari bootstrap/app.php agar kompatibel dengan route:cache)
+        RateLimiter::for('api', function (Request $request) {
+            return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+        });
+        
+        RateLimiter::for('login', function (Request $request) {
+            return Limit::perMinute(10)->by($request->ip());
+        });
+        
+        RateLimiter::for('register', function (Request $request) {
+            return Limit::perMinute(5)->by($request->ip());
+        });
     }
 }

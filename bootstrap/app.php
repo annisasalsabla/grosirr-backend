@@ -4,9 +4,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Console\Scheduling\Schedule;
-use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\RateLimiter;
 use App\Console\Commands\SendDailyReceivableNotification;
 use App\Console\Commands\CheckLowStock;
 use App\Console\Commands\CheckAdminNotifications;
@@ -20,21 +18,6 @@ return Application::configure(basePath: dirname(__DIR__))
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
-        then: function () {
-            // Define API rate limiter here
-            RateLimiter::for('api', function (Request $request) {
-                return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
-            });
-            
-            // Define custom rate limiters
-            RateLimiter::for('login', function (Request $request) {
-                return Limit::perMinute(10)->by($request->ip());
-            });
-            
-            RateLimiter::for('register', function (Request $request) {
-                return Limit::perMinute(5)->by($request->ip());
-            });
-        }
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
