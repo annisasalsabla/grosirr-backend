@@ -705,7 +705,7 @@ class BadProductController extends Controller
         DB::beginTransaction();
         try {
             $request->validate([
-                'payable_id' => 'required|exists:payables,id',
+                'payable_id' => 'nullable|exists:payables,id',
                 'amount' => 'required|numeric|min:1',
                 'notes' => 'nullable|string|max:500',
                 'tanggal_kompensasi' => 'nullable|date|before_or_equal:today',
@@ -736,28 +736,32 @@ class BadProductController extends Controller
                 return $this->error('Jumlah kompensasi ('.$request->amount.') melebihi sisa nilai kerugian ('.$sisaNilai.')', null, 400);
             }
 
-            // 3. Lock Payable
-            $payable = \App\Models\Payable::where('id', $request->payable_id)->lockForUpdate()->firstOrFail();
+            $payable = null;
+            // 3. Eksekusi Potong Hutang JIKA payable_id ADA
+            if ($request->filled('payable_id')) {
+                $payable = \App\Models\Payable::where('id', $request->payable_id)->lockForUpdate()->firstOrFail();
 
-            // Validasi kepemilikan supplier
-            if ($payable->supplier_id !== $badProduct->product->supplier_id) {
-                DB::rollBack();
-                return $this->error('Payable tidak milik supplier yang sama dengan barang rusak ini', null, 400);
+                // Validasi kepemilikan supplier (seperti instruksi)
+                if ($payable->supplier_id !== $badProduct->product->supplier_id) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'payable_id' => ['Hutang ini bukan milik supplier terkait barang rusak ini.']
+                    ]);
+                }
+
+                // Validasi remaining debt
+                if ($request->amount > $payable->remaining_debt) {
+                    DB::rollBack();
+                    return $this->error('Jumlah kompensasi melebihi sisa hutang di payable ini', null, 400);
+                }
+
+                // Eksekusi Potong Hutang (Re-use logic PayableController)
+                $payable->paid_amount += $request->amount;
+                $payable->remaining_debt -= $request->amount;
+                $payable->status = $payable->remaining_debt <= 0 ? 'paid' : 'partial';
+                $payable->save();
             }
 
-            // Validasi remaining debt
-            if ($request->amount > $payable->remaining_debt) {
-                DB::rollBack();
-                return $this->error('Jumlah kompensasi melebihi sisa hutang di payable ini', null, 400);
-            }
-
-            // 4. Eksekusi Potong Hutang (Re-use logic PayableController)
-            $payable->paid_amount += $request->amount;
-            $payable->remaining_debt -= $request->amount;
-            $payable->status = $payable->remaining_debt <= 0 ? 'paid' : 'partial';
-            $payable->save();
-
-            // 5. Eksekusi Update BadProduct
+            // 4. Eksekusi Update BadProduct
             $badProduct->compensated_value += $request->amount;
             
             // Hitung ulang status setelah value ditambahkan
@@ -765,12 +769,15 @@ class BadProductController extends Controller
             $badProduct->status_kompensasi = $newState['status'];
             
             // Catat history dalam format JSON via helper
+            $metode = $request->filled('payable_id') ? 'potong_hutang' : 'tunai_langsung';
+            
             $badProduct->appendKompensasiHistory([
                 'tanggal' => $tanggalKompensasi->format('Y-m-d'),
                 'jenis' => 'uang',
                 'nominal' => (float)$request->amount,
                 'jumlah' => null,
                 'unit' => null,
+                'metode' => $metode,
                 'catatan' => $request->notes,
                 'image_url' => null
             ]);
@@ -783,7 +790,7 @@ class BadProductController extends Controller
             return $this->success([
                 'bad_product' => $badProduct,
                 'payable' => $payable
-            ], 'Kompensasi uang berhasil dicatat dan hutang dipotong', 200);
+            ], 'Kompensasi uang berhasil dicatat', 200);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             DB::rollBack();
