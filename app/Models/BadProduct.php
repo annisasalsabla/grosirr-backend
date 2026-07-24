@@ -16,7 +16,7 @@ class BadProduct extends Model
         'compensated_quantity', 'compensated_value'
     ];
 
-    protected $appends = ['image_url', 'catatan_kompensasi_history'];
+    protected $appends = ['image_url', 'catatan_kompensasi_history', 'display_status'];
 
     protected $hidden = ['catatan_kompensasi'];
 
@@ -46,6 +46,17 @@ class BadProduct extends Model
         if (!$this->image) return null;
         if (str_starts_with($this->image, 'http')) return $this->image;
         return asset('storage/' . $this->image);
+    }
+
+    public function getDisplayStatusAttribute()
+    {
+        if ($this->status_kompensasi === 'selesai') {
+            return 'selesai';
+        } elseif ($this->status_kompensasi === 'diganti_sebagian' || $this->reported_to_supplier || $this->status === 'reported') {
+            return 'menunggu_kompensasi';
+        } else {
+            return 'belum_dilaporkan';
+        }
     }
 
     public function getCatatanKompensasiHistoryAttribute()

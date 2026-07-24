@@ -19,7 +19,7 @@ use Barryvdh\DomPDF\Facade\Pdf as PDF;
 
 class BadProductController extends Controller
 {
-    use ApiResponseTrait;
+    use ApiResponseTrait, \App\Traits\DateRangeHelper;
 
     protected $logger;
 
@@ -39,16 +39,83 @@ class BadProductController extends Controller
 
             $query = BadProduct::with(['product', 'reportedBy']);
 
-            if ($status) {
-                $query->where('status', $status);
+            // FILTER STATUS SESUAI TAB (DISPLAY_STATUS)
+            if ($status === 'selesai') {
+                $query->where('status_kompensasi', 'selesai');
+            } elseif ($status === 'menunggu_kompensasi') {
+                $query->where('status_kompensasi', '!=', 'selesai')
+                      ->where(function($q) {
+                          $q->where('status_kompensasi', 'diganti_sebagian')
+                            ->orWhere('reported_to_supplier', true)
+                            ->orWhere('status', 'reported');
+                      });
+            } elseif ($status === 'belum_dilaporkan') {
+                $query->where('status_kompensasi', '!=', 'selesai')
+                      ->where('status_kompensasi', '!=', 'diganti_sebagian')
+                      ->where('reported_to_supplier', false)
+                      ->where('status', '!=', 'reported');
+            }
+
+            // FILTER PERIODE
+            if ($request->has('period')) {
+                switch ($request->period) {
+                    case 'daily':
+                        $date = $request->input('date', now()->toDateString());
+                        $query->where('tanggal_kejadian', $date);
+                        break;
+                    case 'weekly':
+                        $week  = $request->input('week');
+                        $month = $request->input('month', now()->month);
+                        $year  = $request->input('year', now()->year);
+
+                        if ($week !== null) {
+                            $range = $this->getFlutterWeeklyRange($week, $month, $year);
+                            $startDate = $range['start'];
+                            $endDate   = $range['end'];
+                        } else {
+                            $baseDate  = \Carbon\Carbon::parse($request->input('date', now()->toDateString()));
+                            $startDate = $baseDate->copy()->startOfWeek()->toDateString();
+                            $endDate   = $baseDate->copy()->endOfWeek()->toDateString();
+                        }
+                        $query->whereBetween('tanggal_kejadian', [$startDate, $endDate]);
+                        break;
+                    case 'monthly':
+                        $month = $request->input('month', now()->month);
+                        $year = $request->input('year', now()->year);
+                        $startOfMonth = \Carbon\Carbon::createFromDate($year, $month, 1)->startOfMonth()->toDateString();
+                        $endOfMonth = \Carbon\Carbon::createFromDate($year, $month, 1)->endOfMonth()->toDateString();
+                        $query->whereBetween('tanggal_kejadian', [$startOfMonth, $endOfMonth]);
+                        break;
+                    case 'custom':
+                        $query->whereBetween('tanggal_kejadian', [$request->start_date, $request->end_date]);
+                        break;
+                }
+            }
+
+            // HITUNG SUMMARY DINAMIS (Berdasarkan periode)
+            // Clone agar summary tidak terkena efek paginate(limit/offset)
+            $summaryQuery = clone $query;
+            $allBadProductsForSummary = $summaryQuery->get();
+            
+            $summary = [
+                'total_items' => $allBadProductsForSummary->count(),
+                'total_quantity' => $allBadProductsForSummary->sum('quantity'),
+                'total_loss' => $allBadProductsForSummary->sum('loss_amount'),
+                'status_counts' => [
+                    'belum_dilaporkan' => 0,
+                    'menunggu_kompensasi' => 0,
+                    'selesai' => 0
+                ]
+            ];
+            
+            foreach ($allBadProductsForSummary as $bp) {
+                $displayStatus = $bp->display_status;
+                if (isset($summary['status_counts'][$displayStatus])) {
+                    $summary['status_counts'][$displayStatus]++;
+                }
             }
 
             $badProducts = $query->orderBy('tanggal_kejadian', 'desc')->paginate($perPage);
-
-            $summary = [
-                'total_quantity' => BadProduct::whereMonth('tanggal_kejadian', now()->month)->sum('quantity'),
-                'total_loss' => BadProduct::whereMonth('tanggal_kejadian', now()->month)->sum('loss_amount'),
-            ];
 
             return $this->success([
                 'bad_products' => $badProducts,
