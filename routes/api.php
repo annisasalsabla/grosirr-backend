@@ -161,13 +161,18 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::apiResource('suppliers', App\Http\Controllers\Admin\SupplierController::class);
         
         // ==================== BAD PRODUCTS ====================
-        Route::apiResource('bad-products', App\Http\Controllers\Admin\BadProductController::class);
+        // Custom static routes MUST be defined BEFORE apiResource ({id} wildcard)
         Route::post('/bad-products/preview-calculation', [App\Http\Controllers\Admin\BadProductController::class, 'previewCalculation']);
-        Route::post('/bad-products/{id}/compensate-cash', [App\Http\Controllers\Admin\BadProductController::class, 'compensateCash']);
         Route::get('/bad-products/supplier-comparison', [App\Http\Controllers\Admin\BadProductController::class, 'getSupplierComparison']);
         Route::get('/bad-products/suppliers/list', [App\Http\Controllers\Admin\BadProductController::class, 'getSuppliersWithBadProducts']);
         Route::get('/bad-products/supplier/{supplierId}', [App\Http\Controllers\Admin\BadProductController::class, 'getBySupplier']);
         Route::get('/bad-products/supplier/{supplierId}/export-pdf', [App\Http\Controllers\Admin\BadProductController::class, 'exportPdfBySupplier']);
+        
+        // Parameterized routes (non-wildcard)
+        Route::post('/bad-products/{id}/compensate-cash', [App\Http\Controllers\Admin\BadProductController::class, 'compensateCash']);
+        
+        // apiResource (wildcard {bad_product}) MUST be at the bottom
+        Route::apiResource('bad-products', App\Http\Controllers\Admin\BadProductController::class);
         
         // ==================== PAYABLES (HUTANG SUPPLIER) ====================
         Route::get('/payables', [App\Http\Controllers\Admin\PayableController::class, 'index']);
