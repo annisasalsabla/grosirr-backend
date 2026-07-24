@@ -35,3 +35,27 @@ Thumbs.db
 /storage/framework/sessions
 /storage/framework/views
 /.claude/
+
+# Scratch & testing files
+scratch/
+test_*.php
+*.puml
+docs/
+*.drawio
+*.mmd
+erd*.png
+erd*.svg
+ERD_*.html
+ERD_*.drawio
+database_schema*.md
+schema_output.json
+metadata.md
+get_schema*.php
+gen_erd_svg.py
+pdf_to_img.py
+svg_to_png.cjs
+lint_all.php
+test.pdf
+test.php
+test_preview.png
+tests/Feature/TmpTest.php
