@@ -29,6 +29,71 @@ class BadProductController extends Controller
     }
 
     /**
+     * Helper untuk menerapkan filter period dan status secara seragam
+     * pada semua endpoint pencarian data barang rusak.
+     */
+    private function applyFilters($query, Request $request)
+    {
+        $status = $request->input('status');
+
+        // FILTER STATUS SESUAI TAB (DISPLAY_STATUS)
+        if ($status === 'selesai') {
+            $query->where('status_kompensasi', 'selesai');
+        } elseif ($status === 'menunggu_kompensasi') {
+            $query->where('status_kompensasi', '!=', 'selesai')
+                  ->where(function($q) {
+                      $q->where('status_kompensasi', 'diganti_sebagian')
+                        ->orWhere('reported_to_supplier', true)
+                        ->orWhere('status', 'reported');
+                  });
+        } elseif ($status === 'belum_dilaporkan') {
+            $query->where('status_kompensasi', '!=', 'selesai')
+                  ->where('status_kompensasi', '!=', 'diganti_sebagian')
+                  ->where('reported_to_supplier', false)
+                  ->where('status', '!=', 'reported');
+        }
+
+        // FILTER PERIODE
+        if ($request->has('period')) {
+            switch ($request->period) {
+                case 'daily':
+                    $date = $request->input('date', now()->toDateString());
+                    $query->where('tanggal_kejadian', $date);
+                    break;
+                case 'weekly':
+                    $week  = $request->input('week');
+                    $month = $request->input('month', now()->month);
+                    $year  = $request->input('year', now()->year);
+
+                    if ($week !== null) {
+                        $range = $this->getFlutterWeeklyRange($week, $month, $year);
+                        $startDate = $range['start'];
+                        $endDate   = $range['end'];
+                    } else {
+                        $baseDate  = \Carbon\Carbon::parse($request->input('date', now()->toDateString()));
+                        $startDate = $baseDate->copy()->startOfWeek()->toDateString();
+                        $endDate   = $baseDate->copy()->endOfWeek()->toDateString();
+                    }
+                    $query->whereBetween('tanggal_kejadian', [$startDate, $endDate]);
+                    break;
+                case 'monthly':
+                    $month = $request->input('month', now()->month);
+                    $year = $request->input('year', now()->year);
+                    $startOfMonth = \Carbon\Carbon::createFromDate($year, $month, 1)->startOfMonth()->toDateString();
+                    $endOfMonth = \Carbon\Carbon::createFromDate($year, $month, 1)->endOfMonth()->toDateString();
+                    $query->whereBetween('tanggal_kejadian', [$startOfMonth, $endOfMonth]);
+                    break;
+                case 'custom':
+                    $query->whereBetween('tanggal_kejadian', [$request->start_date, $request->end_date]);
+                    break;
+            }
+        }
+
+        return $query;
+    }
+
+
+    /**
      * Display a listing of all bad products (Global Pagination)
      */
     public function index(Request $request)
@@ -39,58 +104,7 @@ class BadProductController extends Controller
 
             $query = BadProduct::with(['product', 'reportedBy']);
 
-            // FILTER STATUS SESUAI TAB (DISPLAY_STATUS)
-            if ($status === 'selesai') {
-                $query->where('status_kompensasi', 'selesai');
-            } elseif ($status === 'menunggu_kompensasi') {
-                $query->where('status_kompensasi', '!=', 'selesai')
-                      ->where(function($q) {
-                          $q->where('status_kompensasi', 'diganti_sebagian')
-                            ->orWhere('reported_to_supplier', true)
-                            ->orWhere('status', 'reported');
-                      });
-            } elseif ($status === 'belum_dilaporkan') {
-                $query->where('status_kompensasi', '!=', 'selesai')
-                      ->where('status_kompensasi', '!=', 'diganti_sebagian')
-                      ->where('reported_to_supplier', false)
-                      ->where('status', '!=', 'reported');
-            }
-
-            // FILTER PERIODE
-            if ($request->has('period')) {
-                switch ($request->period) {
-                    case 'daily':
-                        $date = $request->input('date', now()->toDateString());
-                        $query->where('tanggal_kejadian', $date);
-                        break;
-                    case 'weekly':
-                        $week  = $request->input('week');
-                        $month = $request->input('month', now()->month);
-                        $year  = $request->input('year', now()->year);
-
-                        if ($week !== null) {
-                            $range = $this->getFlutterWeeklyRange($week, $month, $year);
-                            $startDate = $range['start'];
-                            $endDate   = $range['end'];
-                        } else {
-                            $baseDate  = \Carbon\Carbon::parse($request->input('date', now()->toDateString()));
-                            $startDate = $baseDate->copy()->startOfWeek()->toDateString();
-                            $endDate   = $baseDate->copy()->endOfWeek()->toDateString();
-                        }
-                        $query->whereBetween('tanggal_kejadian', [$startDate, $endDate]);
-                        break;
-                    case 'monthly':
-                        $month = $request->input('month', now()->month);
-                        $year = $request->input('year', now()->year);
-                        $startOfMonth = \Carbon\Carbon::createFromDate($year, $month, 1)->startOfMonth()->toDateString();
-                        $endOfMonth = \Carbon\Carbon::createFromDate($year, $month, 1)->endOfMonth()->toDateString();
-                        $query->whereBetween('tanggal_kejadian', [$startOfMonth, $endOfMonth]);
-                        break;
-                    case 'custom':
-                        $query->whereBetween('tanggal_kejadian', [$request->start_date, $request->end_date]);
-                        break;
-                }
-            }
+            $this->applyFilters($query, $request);
 
             // HITUNG SUMMARY DINAMIS (Berdasarkan periode)
             // Clone agar summary tidak terkena efek paginate(limit/offset)
@@ -403,19 +417,23 @@ class BadProductController extends Controller
     public function getSuppliersWithBadProducts(Request $request)
     {
         try {
-            $suppliers = Supplier::whereHas('products', function ($query) {
-                $query->whereHas('badProducts');
+            $suppliers = Supplier::whereHas('products', function ($query) use ($request) {
+                $query->whereHas('badProducts', function ($q) use ($request) {
+                    $this->applyFilters($q, $request);
+                });
             })->get();
             
             $result = [];
             
             foreach ($suppliers as $supplier) {
-                $badProducts = BadProduct::with(['product'])
-                    ->whereHas('product', function ($query) use ($supplier) {
-                        $query->where('supplier_id', $supplier->id);
-                    })
-                    ->orderBy('tanggal_kejadian', 'desc')
-                    ->get();
+                $query = BadProduct::with(['product'])
+                    ->whereHas('product', function ($q) use ($supplier) {
+                        $q->where('supplier_id', $supplier->id);
+                    });
+                
+                $this->applyFilters($query, $request);
+                
+                $badProducts = $query->orderBy('tanggal_kejadian', 'desc')->get();
                 
                 $totalQuantity = 0;
                 $totalLoss = 0;
@@ -479,12 +497,14 @@ class BadProductController extends Controller
                 return $this->error('Supplier tidak ditemukan', null, 404);
             }
             
-            $badProducts = BadProduct::with(['product'])
-                ->whereHas('product', function ($query) use ($supplierId) {
-                    $query->where('supplier_id', $supplierId);
-                })
-                ->orderBy('tanggal_kejadian', 'desc')
-                ->get();
+            $query = BadProduct::with(['product'])
+                ->whereHas('product', function ($q) use ($supplierId) {
+                    $q->where('supplier_id', $supplierId);
+                });
+                
+            $this->applyFilters($query, $request);
+            
+            $badProducts = $query->orderBy('tanggal_kejadian', 'desc')->get();
             
             $totalQuantity = 0;
             $totalLoss = 0;
@@ -549,13 +569,21 @@ class BadProductController extends Controller
                 ], 404);
             }
 
-            // Ambil hanya barang rusak dengan status pending
-            $badProducts = BadProduct::with(['product'])
-                ->whereHas('product', function ($query) use ($supplierId) {
-                    $query->where('supplier_id', $supplierId);
-                })
-                ->where('status', 'pending')
-                ->get();
+            // Ambil data barang rusak berdasarkan filter periode dan status
+            $query = BadProduct::with(['product'])
+                ->whereHas('product', function ($q) use ($supplierId) {
+                    $q->where('supplier_id', $supplierId);
+                });
+            
+            // Fallback keamanan: jika request tidak membawa filter status eksplisit,
+            // paksa set status menjadi "belum_dilaporkan" (sesuai logic display_status).
+            if (!$request->has('status')) {
+                $request->merge(['status' => 'belum_dilaporkan']);
+            }
+            
+            $this->applyFilters($query, $request);
+
+            $badProducts = $query->get();
 
             if ($badProducts->isEmpty()) {
                 return response()->json([
