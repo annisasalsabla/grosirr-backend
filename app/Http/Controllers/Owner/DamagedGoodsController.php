@@ -14,6 +14,8 @@ use Illuminate\Http\Request;
  */
 class DamagedGoodsController extends Controller
 {
+    use \App\Traits\SupplierComparisonTrait;
+
     use ApiResponseTrait;
 
     /**

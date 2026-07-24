@@ -112,6 +112,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
         // ==================== BARANG RUSAK (PEMANTAUAN) ====================
         Route::get('/damaged-goods', [App\Http\Controllers\Owner\DamagedGoodsController::class, 'index']);
+        Route::get('/bad-products/supplier-comparison', [App\Http\Controllers\Owner\DamagedGoodsController::class, 'getSupplierComparison']);
 
         // ==================== PIUTANG PELANGGAN (PEMANTAUAN) ====================
         Route::get('/customer-receivables', [App\Http\Controllers\Owner\CustomerReceivableController::class, 'index']);
@@ -163,6 +164,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::apiResource('bad-products', App\Http\Controllers\Admin\BadProductController::class);
         Route::post('/bad-products/preview-calculation', [App\Http\Controllers\Admin\BadProductController::class, 'previewCalculation']);
         Route::post('/bad-products/{id}/compensate-cash', [App\Http\Controllers\Admin\BadProductController::class, 'compensateCash']);
+        Route::get('/bad-products/supplier-comparison', [App\Http\Controllers\Admin\BadProductController::class, 'getSupplierComparison']);
         Route::get('/bad-products/suppliers/list', [App\Http\Controllers\Admin\BadProductController::class, 'getSuppliersWithBadProducts']);
         Route::get('/bad-products/supplier/{supplierId}', [App\Http\Controllers\Admin\BadProductController::class, 'getBySupplier']);
         Route::get('/bad-products/supplier/{supplierId}/export-pdf', [App\Http\Controllers\Admin\BadProductController::class, 'exportPdfBySupplier']);

@@ -19,6 +19,8 @@ use Barryvdh\DomPDF\Facade\Pdf as PDF;
 
 class BadProductController extends Controller
 {
+    use \App\Traits\SupplierComparisonTrait;
+
     use ApiResponseTrait, \App\Traits\DateRangeHelper;
 
     protected $logger;
