@@ -131,9 +131,7 @@ class CustomerReceivableController extends Controller
             $totalReceivable = $list->sum('total_piutang');
             $uniqueCustomers = $list->count();
 
-            // Piutang berdasarkan kategori produk dari list final
-            $eggReceivable = $list->filter(fn($c) => in_array('egg', $c['categories']))->sum('total_piutang');
-            $riceReceivable = $list->filter(fn($c) => in_array('rice', $c['categories']))->sum('total_piutang');
+            // Piutang berdasarkan kategori produk (sudah dihitung di atas)
 
             return $this->success([
                 'summary' => [

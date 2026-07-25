@@ -530,7 +530,7 @@ class ReceivableController extends Controller
     public function show($id)
     {
         try {
-            $receivable = Receivable::with(['transaction.cashier', 'transaction.receivablePayments'])->findOrFail($id);
+            $receivable = Receivable::with(['transaction.cashier', 'transaction.receivablePayments', 'customer'])->findOrFail($id);
             
             $paymentsHistory = [];
             if ($receivable->transaction && $receivable->transaction->receivablePayments) {
@@ -559,9 +559,9 @@ class ReceivableController extends Controller
                 'id' => $receivable->id,
                 'transaction_id' => $receivable->transaction_id,
                 'invoice_number' => $transaction->invoice_number ?? '-',
-                'customer_name' => $receivable->customer_name,
-                'customer_phone' => $receivable->customer_phone,
-                'customer_address' => $receivable->customer_address,
+                'customer_name' => $receivable->customer ? $receivable->customer->name : ($receivable->customer_name ?? '-'),
+                'customer_phone' => $receivable->customer ? $receivable->customer->phone : ($receivable->customer_phone ?? '-'),
+                'customer_address' => $receivable->customer ? $receivable->customer->address : ($receivable->customer_address ?? null),
                 'total_debt' => (float) $receivable->total_debt,
                 'total_debt_formatted' => 'Rp ' . number_format($receivable->total_debt, 0, ',', '.'),
                 'paid_amount' => (float) $receivable->paid_amount,
@@ -635,12 +635,12 @@ class ReceivableController extends Controller
     public function getAlertReceivables(Request $request)
     {
         try {
-            $dueSoon = Receivable::with('transaction')
+            $dueSoon = Receivable::with(['transaction', 'customer'])
                 ->where('status', '!=', 'paid')
                 ->whereBetween('due_date', [now(), now()->addDays(3)])
                 ->get();
             
-            $overdue = Receivable::with('transaction')
+            $overdue = Receivable::with(['transaction', 'customer'])
                 ->where('status', '!=', 'paid')
                 ->where('due_date', '<', now())
                 ->get();
@@ -650,8 +650,8 @@ class ReceivableController extends Controller
                 $dueDate = Carbon::parse($item->due_date);
                 return [
                     'id' => $item->id,
-                    'customer_name' => $item->customer_name,
-                    'customer_phone' => $item->customer_phone,
+                    'customer_name' => $item->customer ? $item->customer->name : ($item->customer_name ?? '-'),
+                    'customer_phone' => $item->customer ? $item->customer->phone : ($item->customer_phone ?? '-'),
                     'remaining_debt' => (float) $item->remaining_debt,
                     'remaining_debt_formatted' => 'Rp ' . number_format($item->remaining_debt, 0, ',', '.'),
                     'due_date' => $dueDate->format('d/m/Y'),
@@ -663,8 +663,8 @@ class ReceivableController extends Controller
                 $dueDate = Carbon::parse($item->due_date);
                 return [
                     'id' => $item->id,
-                    'customer_name' => $item->customer_name,
-                    'customer_phone' => $item->customer_phone,
+                    'customer_name' => $item->customer ? $item->customer->name : ($item->customer_name ?? '-'),
+                    'customer_phone' => $item->customer ? $item->customer->phone : ($item->customer_phone ?? '-'),
                     'remaining_debt' => (float) $item->remaining_debt,
                     'remaining_debt_formatted' => 'Rp ' . number_format($item->remaining_debt, 0, ',', '.'),
                     'due_date' => $dueDate->format('d/m/Y'),
