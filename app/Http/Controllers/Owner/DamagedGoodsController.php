@@ -77,6 +77,11 @@ class DamagedGoodsController extends Controller
             $eggItems = $activeList->where('category', 'egg')->sum('quantity');
             $riceItems = $activeList->where('category', 'rice')->sum('quantity');
 
+            // Hitung total laporan (COUNT dari items)
+            $totalReports = $activeList->count();
+            $eggReports = $activeList->where('category', 'egg')->count();
+            $riceReports = $activeList->where('category', 'rice')->count();
+
             // Hitung total kerugian berdasarkan SISA NILAI, EXCLUDE selesai
             $totalLoss = $activeList->sum('sisa_nilai');
             $eggLoss = $activeList->where('category', 'egg')->sum('sisa_nilai');
@@ -87,6 +92,7 @@ class DamagedGoodsController extends Controller
                     'total_kerugian' => (float) $totalLoss,
                     'total_kerugian_formatted' => 'Rp ' . number_format($totalLoss, 0, ',', '.'),
                     'total_item' => $totalItems,
+                    'total_laporan' => $totalReports,
                 ],
                 'by_category' => [
                     'all' => [
@@ -94,18 +100,21 @@ class DamagedGoodsController extends Controller
                         'total_kerugian' => (float) $totalLoss,
                         'total_kerugian_formatted' => 'Rp ' . number_format($totalLoss, 0, ',', '.'),
                         'total_item' => $totalItems,
+                        'total_laporan' => $totalReports,
                     ],
                     'egg' => [
                         'name' => 'Telur',
                         'total_kerugian' => (float) $eggLoss,
                         'total_kerugian_formatted' => 'Rp ' . number_format($eggLoss, 0, ',', '.'),
                         'total_item' => (int) $eggItems,
+                        'total_laporan' => $eggReports,
                     ],
                     'rice' => [
                         'name' => 'Beras',
                         'total_kerugian' => (float) $riceLoss,
                         'total_kerugian_formatted' => 'Rp ' . number_format($riceLoss, 0, ',', '.'),
                         'total_item' => (int) $riceItems,
+                        'total_laporan' => $riceReports,
                     ],
                 ],
                 'items' => $activeList
