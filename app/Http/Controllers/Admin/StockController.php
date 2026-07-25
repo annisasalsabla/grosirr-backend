@@ -115,14 +115,25 @@ class StockController extends Controller
                     $averagePrice = ($totalValueOld + $totalValueNew) / ($oldStock + $newStock);
                 }
             }
-            // --- REVISI FIX: PENAMBAHAN STOK KOMPENSASI AKUMULATIF (FLOOR) ---
+            // --- REVISI FIX: PENAMBAHAN STOK KOMPENSASI AKUMULATIF (LOOSE UNIT FORMULA) ---
             if ($isKompensasi) {
-                // $badProduct->unit adalah satuan saat dilaporkan (misal butir)
-                // $badProduct->compensated_quantity adalah total kompensasi SEBELUM request ini
-                $totalCompensatedBefore = (int) floor(\App\Helpers\UnitConversionHelper::toBaseUnitQuantity($product->category, $badProduct->unit, $badProduct->compensated_quantity));
-                $totalCompensatedAfter = (int) floor(\App\Helpers\UnitConversionHelper::toBaseUnitQuantity($product->category, $badProduct->unit, $badProduct->compensated_quantity + $request->compensation_quantity));
+                // Tentukan rasio konversi (butir ke tray = 30, selain itu 1)
+                $ratio = ($product->category === 'egg' && $badProduct->unit === 'butir') ? 30 : 1;
                 
-                $newStock = $totalCompensatedAfter - $totalCompensatedBefore;
+                // Saat barang rusak dicatat, sistem memotong base_quantity (tray penuh) menggunakan ceil()
+                // Ini berarti secara fisik di toko masih ada "pecahan/sisa butir" yang tidak utuh jadi tray.
+                // Misal: rusak 5 butir. Dipotong 1 tray (30). Sisa pecahan di toko = 25 butir.
+                $looseUnitBefore = ($badProduct->base_quantity * $ratio) - $badProduct->quantity;
+                
+                // Total pecahan terkumpul (sisa di toko + akumulasi kompensasi sebelumnya)
+                $totalLooseBefore = $looseUnitBefore + $badProduct->compensated_quantity;
+                // Total pecahan setelah ditambah kompensasi hari ini
+                $totalLooseAfter = $totalLooseBefore + $request->compensation_quantity;
+                
+                $recoveredBefore = (int) floor($totalLooseBefore / $ratio);
+                $recoveredAfter = (int) floor($totalLooseAfter / $ratio);
+                
+                $newStock = $recoveredAfter - $recoveredBefore;
             }
 
             // 3. Simpan harga baru & increment stok
