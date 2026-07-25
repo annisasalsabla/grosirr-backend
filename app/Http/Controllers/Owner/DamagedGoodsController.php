@@ -14,7 +14,6 @@ use Illuminate\Http\Request;
  */
 class DamagedGoodsController extends Controller
 {
-    use \App\Traits\SupplierComparisonTrait;
 
     use ApiResponseTrait;
 
@@ -32,21 +31,33 @@ class DamagedGoodsController extends Controller
 
             // Format list barang rusak terlebih dahulu untuk mendapatkan sisa_nilai
             $list = $damagedGoods->map(function ($item) {
+                // FIX Poin 2: Gunakan loss_amount asli yang tersimpan di database saat kejadian (historis)
+                // agar nilainya tidak melenceng/berubah meski harga beli (purchase_price) produk naik.
+                $lossPerItem = $item->loss_amount;
+                
+                // purchase_price tetap dikirim hanya sebagai info referensi visual harga saat ini
                 $purchasePrice = $item->product->purchase_price ?? 0;
-                $lossPerItem = $purchasePrice * $item->quantity;
 
                 // Hitung status kompensasi & sisa nilai (reuse logika Admin)
                 $compensationState = BadProduct::calculateCompensationState($item);
 
+                // FIX Poin 1: Penambahan penanda kategori di nama supplier (epan -> epan (Beras))
+                $sup = $item->product->supplier ?? null;
+                $catLabel = '';
+                if ($sup && $sup->product_type) {
+                    $catLabel = $sup->product_type === 'egg' ? 'Telur' : ($sup->product_type === 'rice' ? 'Beras' : ucfirst($sup->product_type));
+                }
+                $supplierName = $sup ? $sup->name . ($catLabel ? " ($catLabel)" : '') : 'Unknown';
+
                 return [
                     'product_name'            => $item->product->name ?? 'Unknown',
                     'category'                => $item->product->category ?? 'unknown',
-                    'supplier_name'           => $item->product->supplier->name ?? 'Unknown',
+                    'supplier_name'           => $supplierName, // Sudah pakai variabel yang mengandung (Telur)/(Beras)
                     'quantity'                => $item->quantity,
                     'unit'                    => $item->unit,
                     'purchase_price'          => (float) $purchasePrice,
                     'purchase_price_formatted'=> 'Rp ' . number_format($purchasePrice, 0, ',', '.'),
-                    'total_loss'              => (float) $lossPerItem,
+                    'total_loss'              => (float) $lossPerItem, // Sesuai snapshot database
                     'total_loss_formatted'    => 'Rp ' . number_format($lossPerItem, 0, ',', '.'),
                     'incident_date'           => $item->tanggal_kejadian?->format('d/m/Y'),
                     'damage_reason'           => $item->damage_reason,
@@ -68,10 +79,12 @@ class DamagedGoodsController extends Controller
             $eggItems = $damagedGoods->filter(fn($item) => $item->product->category === 'egg')->sum('quantity');
             $riceItems = $damagedGoods->filter(fn($item) => $item->product->category === 'rice')->sum('quantity');
 
-            // Hitung total kerugian berdasarkan SISA NILAI (bukan loss awal)
-            $totalLoss = $list->sum('sisa_nilai');
-            $eggLoss = $list->where('category', 'egg')->sum('sisa_nilai');
-            $riceLoss = $list->where('category', 'rice')->sum('sisa_nilai');
+            // Hitung total kerugian berdasarkan SISA NILAI, EXCLUDE selesai
+            $activeList = $list->where('calculated_status', '!=', 'selesai');
+            
+            $totalLoss = $activeList->sum('sisa_nilai');
+            $eggLoss = $activeList->where('category', 'egg')->sum('sisa_nilai');
+            $riceLoss = $activeList->where('category', 'rice')->sum('sisa_nilai');
 
             return $this->success([
                 'summary' => [

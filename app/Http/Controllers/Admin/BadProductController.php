@@ -19,8 +19,6 @@ use Barryvdh\DomPDF\Facade\Pdf as PDF;
 
 class BadProductController extends Controller
 {
-    use \App\Traits\SupplierComparisonTrait;
-
     use ApiResponseTrait, \App\Traits\DateRangeHelper;
 
     protected $logger;
@@ -55,41 +53,7 @@ class BadProductController extends Controller
                   ->where('status', '!=', 'reported');
         }
 
-        // FILTER PERIODE
-        if ($request->has('period')) {
-            switch ($request->period) {
-                case 'daily':
-                    $date = $request->input('date', now()->toDateString());
-                    $query->where('tanggal_kejadian', $date);
-                    break;
-                case 'weekly':
-                    $week  = $request->input('week');
-                    $month = $request->input('month', now()->month);
-                    $year  = $request->input('year', now()->year);
 
-                    if ($week !== null) {
-                        $range = $this->getFlutterWeeklyRange($week, $month, $year);
-                        $startDate = $range['start'];
-                        $endDate   = $range['end'];
-                    } else {
-                        $baseDate  = \Carbon\Carbon::parse($request->input('date', now()->toDateString()));
-                        $startDate = $baseDate->copy()->startOfWeek()->toDateString();
-                        $endDate   = $baseDate->copy()->endOfWeek()->toDateString();
-                    }
-                    $query->whereBetween('tanggal_kejadian', [$startDate, $endDate]);
-                    break;
-                case 'monthly':
-                    $month = $request->input('month', now()->month);
-                    $year = $request->input('year', now()->year);
-                    $startOfMonth = \Carbon\Carbon::createFromDate($year, $month, 1)->startOfMonth()->toDateString();
-                    $endOfMonth = \Carbon\Carbon::createFromDate($year, $month, 1)->endOfMonth()->toDateString();
-                    $query->whereBetween('tanggal_kejadian', [$startOfMonth, $endOfMonth]);
-                    break;
-                case 'custom':
-                    $query->whereBetween('tanggal_kejadian', [$request->start_date, $request->end_date]);
-                    break;
-            }
-        }
 
         return $query;
     }
@@ -116,7 +80,7 @@ class BadProductController extends Controller
             $summary = [
                 'total_items' => $allBadProductsForSummary->count(),
                 'total_quantity' => $allBadProductsForSummary->sum('quantity'),
-                'total_loss' => $allBadProductsForSummary->sum('loss_amount'),
+                'total_loss' => 0,
                 'status_counts' => [
                     'belum_dilaporkan' => 0,
                     'menunggu_kompensasi' => 0,
@@ -128,6 +92,12 @@ class BadProductController extends Controller
                 $displayStatus = $bp->display_status;
                 if (isset($summary['status_counts'][$displayStatus])) {
                     $summary['status_counts'][$displayStatus]++;
+                }
+                
+                // KALKULASI BARU: Tambahkan sisa nilai HANYA jika bukan selesai
+                $state = \App\Models\BadProduct::calculateCompensationState($bp);
+                if ($state['status'] !== 'selesai') {
+                    $summary['total_loss'] += $state['sisa_nilai'];
                 }
             }
 
@@ -440,10 +410,16 @@ class BadProductController extends Controller
                 $totalQuantity = 0;
                 $totalLoss = 0;
                 
+                $catLabel = $supplier->product_type === 'egg' ? 'Telur' : ($supplier->product_type === 'rice' ? 'Beras' : ucfirst($supplier->product_type));
+                $supplierNameWithCategory = $supplier->name . ($catLabel ? " ($catLabel)" : '');
+                
                 $formattedBadProducts = [];
                 foreach ($badProducts as $bp) {
                     $totalQuantity += (int) $bp->quantity;
-                    $totalLoss += (float) $bp->loss_amount;
+                    $state = \App\Models\BadProduct::calculateCompensationState($bp);
+                    if ($state['status'] !== 'selesai') {
+                        $totalLoss += (float) $state['sisa_nilai'];
+                    }
                     
                     $formattedBadProducts[] = [
                         'id' => $bp->id,
@@ -465,9 +441,12 @@ class BadProductController extends Controller
                     ];
                 }
                 
+                $catLabel = $supplier->product_type === 'egg' ? 'Telur' : ($supplier->product_type === 'rice' ? 'Beras' : ucfirst($supplier->product_type));
+                $supplierNameWithCategory = $supplier->name . ($catLabel ? " ($catLabel)" : '');
+
                 $result[] = [
                     'supplier_id' => $supplier->id,
-                    'supplier_name' => $supplier->name,
+                    'supplier_name' => $supplierNameWithCategory,
                     'supplier_phone' => $supplier->phone,
                     'supplier_address' => $supplier->address,
                     'bad_products' => $formattedBadProducts,
