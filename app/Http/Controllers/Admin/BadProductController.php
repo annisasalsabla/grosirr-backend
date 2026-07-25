@@ -129,7 +129,19 @@ class BadProductController extends Controller
             $request->validate([
                 'product_id' => 'required|exists:products,id',
                 'quantity' => 'required|integer|min:1',
-                'unit' => 'required|string|max:50',
+                'unit' => [
+                    'required',
+                    'string',
+                    function ($attribute, $value, $fail) use ($request) {
+                        $cat = \App\Models\Product::find($request->product_id)?->category;
+                        if ($cat === 'egg' && !in_array($value, ['tray', 'butir'])) {
+                            $fail('Satuan telur harus tray atau butir.');
+                        }
+                        if ($cat === 'rice' && $value !== 'karung') {
+                            $fail('Satuan beras harus karung.');
+                        }
+                    },
+                ],
                 'damage_reason' => 'required|string',
                 'tanggal_kejadian' => 'required|date|before_or_equal:today',
                 'image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
@@ -169,8 +181,10 @@ class BadProductController extends Controller
                 'status' => 'pending',
             ]);
             
-            // Kurangi stok
-            $product->decrement('stock', $request->quantity);
+            // Kurangi stok (dengan konversi dan ceil)
+            $stockDeductionRaw = \App\Helpers\UnitConversionHelper::toBaseUnitQuantity($product->category, $request->unit, $request->quantity);
+            $stockDeduction = (int) ceil($stockDeductionRaw);
+            $product->decrement('stock', $stockDeduction);
             
             // Catat histori stok
             \App\Models\Stock::create([

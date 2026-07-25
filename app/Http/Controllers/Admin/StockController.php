@@ -115,6 +115,15 @@ class StockController extends Controller
                     $averagePrice = ($totalValueOld + $totalValueNew) / ($oldStock + $newStock);
                 }
             }
+            // --- REVISI FIX: PENAMBAHAN STOK KOMPENSASI AKUMULATIF (FLOOR) ---
+            if ($isKompensasi) {
+                // $badProduct->unit adalah satuan saat dilaporkan (misal butir)
+                // $badProduct->compensated_quantity adalah total kompensasi SEBELUM request ini
+                $totalCompensatedBefore = (int) floor(\App\Helpers\UnitConversionHelper::toBaseUnitQuantity($product->category, $badProduct->unit, $badProduct->compensated_quantity));
+                $totalCompensatedAfter = (int) floor(\App\Helpers\UnitConversionHelper::toBaseUnitQuantity($product->category, $badProduct->unit, $badProduct->compensated_quantity + $request->compensation_quantity));
+                
+                $newStock = $totalCompensatedAfter - $totalCompensatedBefore;
+            }
 
             // 3. Simpan harga baru & increment stok
             $product->purchase_price = round($averagePrice, 0);

@@ -48,7 +48,7 @@ class ProductController extends Controller
             $request->validate([
                 'name' => 'required|string|max:255',
                 'category' => 'required|in:egg,rice',
-                'unit' => 'required|string|in:tray,butir,kg,karung',
+                'unit' => 'required|string|in:tray,karung',
                 'purchase_price' => 'required|numeric|gt:0',
                 'selling_price' => 'required|numeric|min:0|gt:purchase_price',
                 'min_stock' => 'required|integer|min:0',
@@ -99,7 +99,7 @@ class ProductController extends Controller
             
             $request->validate([
                 'name' => 'sometimes|string|max:255',
-                'unit' => 'sometimes|string|in:tray,butir,kg,karung',
+                'unit' => 'sometimes|string|in:tray,karung',
                 'purchase_price' => 'sometimes|numeric|gt:0',
                 'selling_price' => 'sometimes|numeric|min:0',
                 'min_stock' => 'sometimes|integer|min:0',
