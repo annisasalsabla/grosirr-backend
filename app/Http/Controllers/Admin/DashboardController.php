@@ -56,7 +56,7 @@ class DashboardController extends Controller
 
             // Barang Rusak: Total kuantitas logs barang rusak hari ini
             $todayBadProducts = BadProduct::whereBetween('created_at', [$todayStart, $todayEnd])
-                ->sum('quantity');
+                ->sum('base_quantity');
 
             // ========== 2. STATUS INVENTARIS REAL-TIME ==========
 
@@ -69,12 +69,12 @@ class DashboardController extends Controller
             // Stok Masuk Hari Ini: Total kuantitas barang ditambahkan via form tambah stok
             $stockInToday = Stock::whereBetween('created_at', [$todayStart, $todayEnd])
                 ->where('type', 'in')
-                ->sum('quantity');
+                ->sum('base_quantity');
 
             // Stok Keluar Hari Ini: Total kuantitas barang berhasil dijual
             $stockOutToday = Stock::whereBetween('created_at', [$todayStart, $todayEnd])
                 ->where('type', 'out')
-                ->sum('quantity');
+                ->sum('base_quantity');
 
             // ========== 3. STOK HAMPIR HABIS (Berdasarkan min_stock per produk) ==========
             $lowStockItems = Product::whereColumn('stock', '<=', 'min_stock')

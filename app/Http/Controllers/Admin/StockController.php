@@ -149,7 +149,8 @@ class StockController extends Controller
             $stock = Stock::create([
                 'product_id' => $product->id,
                 'type' => 'in',
-                'quantity' => $newStock,
+                'quantity' => $isKompensasi ? $request->compensation_quantity : $request->quantity,
+                'base_quantity' => $newStock,
                 'purchase_price' => $recordedPrice,
                 'is_credit' => $isKompensasi ? false : ($request->is_credit ?? false), // Paksa false jika kompensasi
                 'due_date' => $request->due_date,
@@ -186,7 +187,7 @@ class StockController extends Controller
                     'jenis' => 'barang',
                     'nominal' => null,
                     'jumlah' => (float)$request->compensation_quantity,
-                    'unit' => $product->unit,
+                    'unit' => $badProduct->unit,
                     'catatan' => $request->notes,
                     'image_url' => $stock->bukti_pembelian_url
                 ]);

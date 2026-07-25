@@ -423,7 +423,7 @@ class ReportController extends Controller
             $badProducts = $query->orderBy('incident_date', 'desc')->paginate($request->input('per_page', 10));
             
             $summary = [
-                'total_quantity' => $query->sum('quantity'),
+                'total_quantity' => $query->sum('base_quantity'),
                 'total_loss' => $query->sum('loss_amount'),
                 'reported_count' => $query->where('reported_to_supplier', true)->count(),
                 'unreported_count' => $query->where('reported_to_supplier', false)->count(),

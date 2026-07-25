@@ -532,7 +532,7 @@ class ReportController extends Controller
             $badProducts->setCollection($formattedBadProducts);
             
             $summary = [
-                'total_quantity' => BadProduct::whereMonth('incident_date', now()->month)->sum('quantity'),
+                'total_quantity' => BadProduct::whereMonth('incident_date', now()->month)->sum('base_quantity'),
                 'total_loss' => (float) BadProduct::whereMonth('incident_date', now()->month)->sum('loss_amount'),
                 'total_loss_formatted' => 'Rp ' . number_format(BadProduct::whereMonth('incident_date', now()->month)->sum('loss_amount'), 0, ',', '.'),
                 'reported_count' => BadProduct::where('reported_to_supplier', true)->count(),

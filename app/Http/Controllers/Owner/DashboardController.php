@@ -155,13 +155,13 @@ class DashboardController extends Controller
         return [
             'egg' => [
                 'name' => 'Telur',
-                'stock_in' => (int) Stock::todayIn('egg')->sum('quantity'),
-                'stock_out' => (int) Stock::todayOut('egg')->sum('quantity'),
+                'stock_in' => (int) Stock::todayIn('egg')->sum('base_quantity'),
+                'stock_out' => (int) Stock::todayOut('egg')->sum('base_quantity'),
             ],
             'rice' => [
                 'name' => 'Beras',
-                'stock_in' => (int) Stock::todayIn('rice')->sum('quantity'),
-                'stock_out' => (int) Stock::todayOut('rice')->sum('quantity'),
+                'stock_in' => (int) Stock::todayIn('rice')->sum('base_quantity'),
+                'stock_out' => (int) Stock::todayOut('rice')->sum('base_quantity'),
             ],
         ];
     }

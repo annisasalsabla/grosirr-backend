@@ -28,16 +28,15 @@ class BadProductReportController extends Controller
                 ->orderBy('incident_date', 'desc')
                 ->paginate($perPage);
 
-            // Summary Total Kerugian
             $summary = [
-                'total_quantity' => BadProduct::sum('quantity'),
+                'total_quantity' => BadProduct::sum('base_quantity'),
                 'total_loss' => BadProduct::sum('loss_amount'),
                 'total_loss_formatted' => 'Rp ' . number_format(BadProduct::sum('loss_amount'), 0, ',', '.'),
-                'monthly_quantity' => BadProduct::whereMonth('incident_date', now()->month)->sum('quantity'),
+                'monthly_quantity' => BadProduct::whereMonth('incident_date', now()->month)->sum('base_quantity'),
                 'monthly_loss' => BadProduct::whereMonth('incident_date', now()->month)->sum('loss_amount'),
                 'reported_count' => BadProduct::where('reported_to_supplier', true)->count(),
                 'unreported_count' => BadProduct::where('reported_to_supplier', false)->count(),
-                'by_reason' => BadProduct::select('damage_reason', BadProduct::raw('SUM(quantity) as total_quantity'))
+                'by_reason' => BadProduct::select('damage_reason', \DB::raw('SUM(base_quantity) as total_quantity'))
                     ->groupBy('damage_reason')
                     ->get(),
             ];
@@ -52,7 +51,7 @@ class BadProductReportController extends Controller
                         'product_id' => $productId,
                         'product_name' => $firstItem->product->name,
                         'supplier_name' => $firstItem->product->supplier->name ?? 'Unknown',
-                        'total_quantity' => $items->sum('quantity'),
+                        'total_quantity' => $items->sum('base_quantity'),
                         'total_loss' => $items->sum('loss_amount'),
                     ];
                 })

@@ -10,7 +10,7 @@ class BadProduct extends Model
     use HasFactory;
 
     protected $fillable = [
-        'product_id', 'quantity', 'unit', 'damage_reason', 'image', 'loss_amount',
+        'product_id', 'quantity', 'base_quantity', 'unit', 'damage_reason', 'image', 'loss_amount',
         'incident_date', 'tanggal_kejadian', 'reported_by', 'reported_to_supplier', 'status', 'reported_at',
         'status_kompensasi', 'tanggal_kompensasi', 'catatan_kompensasi', 'jumlah_kompensasi_uang',
         'compensated_quantity', 'compensated_value'

@@ -73,9 +73,9 @@ class DamagedGoodsController extends Controller
             $activeList = $list->where('calculated_status', '!=', 'selesai')->values();
 
             // Hitung total item rusak (HANYA item aktif)
-            $totalItems = $activeList->sum('quantity');
-            $eggItems = $activeList->where('category', 'egg')->sum('quantity');
-            $riceItems = $activeList->where('category', 'rice')->sum('quantity');
+            $totalItems = $activeList->sum('base_quantity');
+            $eggItems = $activeList->where('category', 'egg')->sum('base_quantity');
+            $riceItems = $activeList->where('category', 'rice')->sum('base_quantity');
 
             // Hitung total laporan (COUNT dari items)
             $totalReports = $activeList->count();

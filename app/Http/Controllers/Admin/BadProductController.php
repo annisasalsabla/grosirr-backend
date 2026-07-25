@@ -150,7 +150,11 @@ class BadProductController extends Controller
             
             $product = Product::findOrFail($request->product_id);
             
-            if ($product->stock < $request->quantity) {
+            // Hitung potongan stok base unit (ceil) untuk divalidasi dan disimpan
+            $stockDeductionRaw = \App\Helpers\UnitConversionHelper::toBaseUnitQuantity($product->category, $request->unit, $request->quantity);
+            $stockDeduction = (int) ceil($stockDeductionRaw);
+
+            if ($product->stock < $stockDeduction) {
                 return $this->error('Stok produk tidak mencukupi untuk mencatat barang rusak', null, 400);
             }
             
@@ -172,6 +176,7 @@ class BadProductController extends Controller
             $badProduct = BadProduct::create([
                 'product_id' => $request->product_id,
                 'quantity' => $request->quantity,
+                'base_quantity' => $stockDeduction,
                 'unit' => $request->unit,
                 'damage_reason' => $request->damage_reason,
                 'image' => $imagePath,
@@ -182,9 +187,6 @@ class BadProductController extends Controller
                 'status' => 'pending',
             ]);
             
-            // Kurangi stok (dengan konversi dan ceil)
-            $stockDeductionRaw = \App\Helpers\UnitConversionHelper::toBaseUnitQuantity($product->category, $request->unit, $request->quantity);
-            $stockDeduction = (int) ceil($stockDeductionRaw);
             $product->decrement('stock', $stockDeduction);
             
             // Catat histori stok
@@ -192,6 +194,7 @@ class BadProductController extends Controller
                 'product_id' => $product->id,
                 'type' => 'out',
                 'quantity' => $request->quantity,
+                'base_quantity' => $stockDeduction,
                 'description' => 'Barang rusak: ' . $request->damage_reason . ' (' . $request->quantity . ' ' . $request->unit . ')',
                 'user_id' => $request->user()->id,
             ]);
