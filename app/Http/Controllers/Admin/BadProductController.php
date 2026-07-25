@@ -95,9 +95,9 @@ class BadProductController extends Controller
                     $summary['status_counts'][$displayStatus]++;
                 }
                 
-                // KALKULASI BARU: Tambahkan sisa nilai HANYA jika bukan selesai
-                $state = \App\Models\BadProduct::calculateCompensationState($bp);
-                if ($state['status'] !== 'selesai') {
+                // KALKULASI BARU: Tambahkan sisa nilai HANYA jika bukan selesai secara display
+                if ($displayStatus !== 'selesai') {
+                    $state = \App\Models\BadProduct::calculateCompensationState($bp);
                     $summary['total_items']++;
                     $summary['total_quantity'] += $bp->quantity;
                     $summary['total_loss'] += $state['sisa_nilai'];
