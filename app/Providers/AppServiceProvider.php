@@ -27,9 +27,6 @@ class AppServiceProvider extends ServiceProvider
         
         // Set locale ke Indonesia
         app()->setLocale('id');
-
-        // Registrasi Transaction Observer
-        \App\Models\Transaction::observe(\App\Observers\TransactionObserver::class);
         
         // Define Rate Limiters (Dipindahkan dari bootstrap/app.php agar kompatibel dengan route:cache)
         RateLimiter::for('api', function (Request $request) {

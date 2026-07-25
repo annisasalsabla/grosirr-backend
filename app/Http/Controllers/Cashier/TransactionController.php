@@ -68,21 +68,17 @@ class TransactionController extends Controller
                 // Customer ID untuk piutang (wajib jika metode kredit)
                 'customer_id' => 'required_if:payment_method,receivable|integer|exists:customers,id',
                 'bukti_pembayaran' => 'required_if:payment_method,qris,qris_statis,transfer|image|max:2048',
-                
-                // Tambahan validasi FITUR 1
-                'customer_name' => 'nullable|string|max:255',
-                'customer_phone' => 'nullable|string|max:15',
             ]);
 
-            // Merekam customer_id asli SEBELUM merge & validasi paling awal (Fitur 2 - Bagian C)
+            // customer_id wajib untuk metode receivable (kredit/piutang)
             $customerId = null;
             if ($request->payment_method === 'receivable') {
                 $customerId = $request->customer_id;
 
                 $customerForCredit = Customer::find($customerId);
-                if (!$customerForCredit || $customerForCredit->member_status !== 'member') {
+                if (!$customerForCredit) {
                     DB::rollBack();
-                    return $this->error('Pelanggan ini belum terdaftar sebagai member, tidak bisa melakukan transaksi kredit/piutang.', null, 403);
+                    return $this->error('Pelanggan tidak ditemukan, pastikan pelanggan sudah terdaftar sebelum melakukan transaksi kredit/piutang.', null, 403);
                 }
             }
             
@@ -180,88 +176,8 @@ class TransactionController extends Controller
             }
             $feeAmount = $totalAmount * ($feePercentage / 100);
 
-            // Logika pencarian/pembuatan customer otomatis Fitur 1
-            if ($customerId === null && empty($request->customer_phone) && $request->filled('customer_name')) {
-                $customerName = trim($request->customer_name);
-                $normalizedName = strtolower($customerName);
-                
-                $lock = \Illuminate\Support\Facades\Cache::lock('customer_name_lock_' . md5($normalizedName), 5);
-                
-                try {
-                    $lock->block(5);
-                    
-                    $candidates = Customer::whereRaw('LOWER(TRIM(name)) = ?', [$normalizedName])
-                        ->whereNull('phone')
-                        ->lockForUpdate()
-                        ->get();
-                        
-                    if ($candidates->count() === 1) {
-                        $customerId = $candidates->first()->id;
-                    } elseif ($candidates->count() === 0) {
-                        $customer = Customer::create([
-                            'name' => $customerName,
-                            'phone' => null,
-                            'member_status' => 'umum',
-                            'is_ambiguous' => false
-                        ]);
-                        $customerId = $customer->id;
-                    } else {
-                        // >= 2 collision
-                        $customer = Customer::create([
-                            'name' => $customerName,
-                            'phone' => null,
-                            'member_status' => 'umum',
-                            'is_ambiguous' => true
-                        ]);
-                        $customerId = $customer->id;
-                        
-                        Customer::whereIn('id', $candidates->pluck('id'))
-                            ->where('is_ambiguous', false)
-                            ->update(['is_ambiguous' => true]);
-                    }
-                    
-                } catch (\Illuminate\Contracts\Cache\LockTimeoutException $e) {
-                    DB::rollBack();
-                    return $this->error('Sistem sedang memproses transaksi lain dengan nama pelanggan yang sama. Silakan coba lagi dalam beberapa detik.', null, 409);
-                } finally {
-                    $lock?->release();
-                }
-            } elseif ($customerId === null && $request->filled('customer_phone')) {
-                $phone = $request->customer_phone;
-                
-                $customer = Customer::where('phone', $phone)->first();
-                if ($customer) {
-                    $customerId = $customer->id;
-                } else {
-                    try {
-                        $customerName = $request->customer_name ?: 'Pelanggan Umum';
-                        
-                        $customer = Customer::create([
-                            'name' => $customerName,
-                            'phone' => $phone,
-                            'member_status' => 'umum',
-                            'is_ambiguous' => false
-                        ]);
-                        $customerId = $customer->id;
-                    } catch (\Illuminate\Database\QueryException $e) {
-                        if (
-                            in_array($e->getCode(), ['23000', '23505']) 
-                            || str_contains($e->getMessage(), '1062')
-                            || str_contains($e->getMessage(), 'UNIQUE constraint failed')
-                            || str_contains($e->getMessage(), 'duplicate key value violates unique constraint')
-                        ) {
-                            $customer = Customer::where('phone', $phone)->first();
-                            if ($customer) {
-                                $customerId = $customer->id;
-                            } else {
-                                throw $e;
-                            }
-                        } else {
-                            throw $e;
-                        }
-                    }
-                }
-            }
+            // Transaksi non-kredit: customer_id tetap null (anonim)
+            // Tidak ada lagi auto-detection customer dari nama/phone
 
             // 1. Buat data transaksi utama
             $transaction = Transaction::create([

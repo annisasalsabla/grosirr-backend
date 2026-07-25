@@ -172,7 +172,7 @@ class DashboardController extends Controller
                         'id' => $tx->id,
                         'waktu' => $tx->created_at->format('H:i'),
                         'tanggal' => $tx->created_at->format('d M Y'),
-                        'nama_pelanggan' => $tx->customer ? $tx->customer->name : ($tx->customer_name ?? 'Tidak ada'),
+                        'nama_pelanggan' => $tx->customer ? $tx->customer->name : '-',
                         'total' => (float) $tx->total_amount,
                         'total_formatted' => 'Rp ' . number_format($tx->total_amount, 0, ',', '.'),
                         'metode_bayar' => $tx->payment_method ?? 'Tunai',
