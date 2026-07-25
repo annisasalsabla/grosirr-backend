@@ -70,12 +70,13 @@ class BadProductController extends Controller
 
             $query = BadProduct::with(['product', 'reportedBy']);
 
-            $this->applyFilters($query, $request);
-
-            // HITUNG SUMMARY DINAMIS (Berdasarkan periode)
-            // Clone agar summary tidak terkena efek paginate(limit/offset)
+            // HITUNG SUMMARY GLOBAL (Mengabaikan filter tab status)
+            // Clone sebelum applyFilters agar summary selalu menghitung semua status
             $summaryQuery = clone $query;
             $allBadProductsForSummary = $summaryQuery->get();
+            
+            // Baru terapkan filter status (tab) ke query utama untuk list/pagination di bawah
+            $this->applyFilters($query, $request);
             
             $summary = [
                 'total_items' => 0,
