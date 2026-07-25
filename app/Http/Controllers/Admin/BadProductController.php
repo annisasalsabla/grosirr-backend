@@ -78,8 +78,8 @@ class BadProductController extends Controller
             $allBadProductsForSummary = $summaryQuery->get();
             
             $summary = [
-                'total_items' => $allBadProductsForSummary->count(),
-                'total_quantity' => $allBadProductsForSummary->sum('quantity'),
+                'total_items' => 0,
+                'total_quantity' => 0,
                 'total_loss' => 0,
                 'status_counts' => [
                     'belum_dilaporkan' => 0,
@@ -97,6 +97,8 @@ class BadProductController extends Controller
                 // KALKULASI BARU: Tambahkan sisa nilai HANYA jika bukan selesai
                 $state = \App\Models\BadProduct::calculateCompensationState($bp);
                 if ($state['status'] !== 'selesai') {
+                    $summary['total_items']++;
+                    $summary['total_quantity'] += $bp->quantity;
                     $summary['total_loss'] += $state['sisa_nilai'];
                 }
             }

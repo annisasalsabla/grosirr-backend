@@ -68,20 +68,16 @@ class DamagedGoodsController extends Controller
                 ];
             });
 
-            // Urutkan list: yang BUKAN selesai (belum_diganti/diganti_sebagian) di atas, selesai di bawah.
-            // Secondary sort tetap berdasar urutan asli (tanggal_kejadian desc dari query).
-            $list = $list->sortBy(function ($item) {
-                return $item['calculated_status'] === 'selesai' ? 1 : 0;
-            })->values();
+            // Filter list: HANYA yang BUKAN selesai (belum_diganti/diganti_sebagian).
+            // Urutkan berdasar urutan asli (tanggal_kejadian desc dari query).
+            $activeList = $list->where('calculated_status', '!=', 'selesai')->values();
 
-            // Hitung total item rusak (tetap hitung semua item)
-            $totalItems = $damagedGoods->sum('quantity');
-            $eggItems = $damagedGoods->filter(fn($item) => $item->product->category === 'egg')->sum('quantity');
-            $riceItems = $damagedGoods->filter(fn($item) => $item->product->category === 'rice')->sum('quantity');
+            // Hitung total item rusak (HANYA item aktif)
+            $totalItems = $activeList->sum('quantity');
+            $eggItems = $activeList->where('category', 'egg')->sum('quantity');
+            $riceItems = $activeList->where('category', 'rice')->sum('quantity');
 
             // Hitung total kerugian berdasarkan SISA NILAI, EXCLUDE selesai
-            $activeList = $list->where('calculated_status', '!=', 'selesai');
-            
             $totalLoss = $activeList->sum('sisa_nilai');
             $eggLoss = $activeList->where('category', 'egg')->sum('sisa_nilai');
             $riceLoss = $activeList->where('category', 'rice')->sum('sisa_nilai');
@@ -112,9 +108,9 @@ class DamagedGoodsController extends Controller
                         'total_item' => (int) $riceItems,
                     ],
                 ],
-                'items' => $list
+                'items' => $activeList
             ], 'Pemantauan barang rusak berhasil dimuat', 200);
-
+            
         } catch (\Exception $e) {
             return $this->error('Terjadi kesalahan: ' . $e->getMessage(), null, 500);
         }
