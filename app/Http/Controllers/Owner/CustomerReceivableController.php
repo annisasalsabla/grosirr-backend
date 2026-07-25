@@ -29,7 +29,7 @@ class CustomerReceivableController extends Controller
         try {
             // Ambil semua receivable yang belum lunas (unpaid + partial)
             $receivables = Receivable::whereIn('status', ['unpaid', 'partial'])
-                ->with(['transaction'])
+                ->with(['transaction', 'customer'])
                 ->orderBy('due_date', 'asc')
                 ->get();
 
@@ -62,7 +62,10 @@ class CustomerReceivableController extends Controller
             }
 
             // Format list berdasarkan customer dan gabungkan total piutangnya
-            $list = $receivables->groupBy('customer_name')->map(function ($items) {
+            // PERBAIKAN: Group by customer_id, atau buat unik key untuk yang NULL
+            $list = $receivables->groupBy(function($item) {
+                return $item->customer_id ?? 'anonim_' . $item->id;
+            })->map(function ($items) {
                 $first = $items->first();
                 $totalPiutang = $items->sum('remaining_debt');
                 $transactionCount = $items->count();
@@ -104,8 +107,10 @@ class CustomerReceivableController extends Controller
                 })->unique()->values()->toArray();
 
                 return [
-                    'customer_name'           => $first->customer_name,
-                    'customer_phone'          => $first->customer_phone,
+                    // PERBAIKAN: Baca live relasi dulu, fallback ke snapshot jika customer dihapus
+                    'customer_name'           => $first->customer ? $first->customer->name : ($first->customer_name ?? '-'),
+                    'customer_phone'          => $first->customer ? $first->customer->phone : ($first->customer_phone ?? '-'),
+                    'customer_address'        => $first->customer ? $first->customer->address : null,
                     'total_piutang'           => (float) $totalPiutang,
                     'total_piutang_formatted' => 'Rp ' . number_format($totalPiutang, 0, ',', '.'),
                     'transaction_count'       => $transactionCount,

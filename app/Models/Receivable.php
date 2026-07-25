@@ -27,6 +27,11 @@ class Receivable extends Model
         return $this->belongsTo(Transaction::class);
     }
 
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class);
+    }
+
     public function isOverdue()
     {
         return $this->due_date->isPast() && $this->status !== 'paid';

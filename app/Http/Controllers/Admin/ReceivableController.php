@@ -44,7 +44,7 @@ class ReceivableController extends Controller
             $perPage = $request->input('per_page', 10);
             $status = $request->input('status', 'all');
             
-            $query = Receivable::with('transaction.cashier');
+            $query = Receivable::with(['transaction.cashier', 'customer']);
             
             if ($status !== 'all' && in_array($status, ['unpaid', 'partial', 'paid'])) {
                 $query->where('status', $status);
@@ -64,8 +64,11 @@ class ReceivableController extends Controller
                     'id' => $item->id,
                     'transaction_id' => $item->transaction_id,
                     'invoice_number' => $item->transaction->invoice_number ?? '-',
-                    'customer_name' => $item->customer_name,
-                    'customer_phone' => $item->customer_phone,
+                    
+                    // PERBAIKAN: Baca live relasi dulu, fallback ke snapshot jika customer dihapus
+                    'customer_name' => $item->customer ? $item->customer->name : ($item->customer_name ?? '-'),
+                    'customer_phone' => $item->customer ? $item->customer->phone : ($item->customer_phone ?? '-'),
+                    'customer_address' => $item->customer ? $item->customer->address : null,
                     'total_debt' => (float) $item->total_debt,
                     'total_debt_formatted' => 'Rp ' . number_format($item->total_debt, 0, ',', '.'),
                     'paid_amount' => (float) $item->paid_amount,
