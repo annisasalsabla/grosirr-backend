@@ -153,8 +153,30 @@ class StockController extends Controller
                 ? 'Kompensasi barang dari supplier (Ref BP ID: ' . $badProduct->id . ')' 
                 : 'Pembelian dari supplier: ' . $supplierId;
 
-            // Tentukan harga yang dicatat ke tabel stocks (Kompensasi = 0)
-            $recordedPrice = $isKompensasi ? 0 : $request->purchase_price;
+            // Tentukan harga yang dicatat ke tabel stocks
+            $recordedPrice = $request->purchase_price;
+            if ($isKompensasi) {
+                // UTAMA (Opsi B): Cari histori harga beli terakhir (hindari rekursi data palsu)
+                $histStock = \App\Models\Stock::where('product_id', $product->id)
+                    ->where('type', 'in')
+                    ->where('description', 'not like', '%Kompensasi barang dari supplier%')
+                    ->whereDate('created_at', '<=', $badProduct->incident_date ?? $badProduct->tanggal_kejadian)
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+                    
+                if ($histStock) {
+                    $recordedPrice = $histStock->purchase_price;
+                } else {
+                    // FALLBACK (Opsi A): Reverse engineering dari loss amount
+                    if ($badProduct->base_quantity > 0) {
+                        $recordedPrice = round($badProduct->loss_amount / $badProduct->base_quantity, 0);
+                    } else {
+                        // FALLBACK 2 (Opsi C): Harga saat ini (dicatat di description)
+                        $recordedPrice = $product->purchase_price;
+                        $description .= ' (Estimasi harga dari nilai produk saat ini)';
+                    }
+                }
+            }
 
             // Catat stok masuk
             $stock = Stock::create([
@@ -169,6 +191,8 @@ class StockController extends Controller
                 'description' => $description,
                 'user_id' => $request->user()->id,
                 'bukti_pembelian' => $buktiPembelianPath,
+                'source_type' => $isKompensasi ? 'kompensasi_supplier' : 'pembelian',
+                'related_bad_product_id' => $isKompensasi ? $badProduct->id : null,
             ]);
             
             // Jika kredit (BUKAN kompensasi), catat hutang
