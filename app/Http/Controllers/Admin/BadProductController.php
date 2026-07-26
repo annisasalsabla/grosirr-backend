@@ -40,15 +40,24 @@ class BadProductController extends Controller
         if ($status === 'selesai') {
             $query->where('status_kompensasi', 'selesai');
         } elseif ($status === 'menunggu_kompensasi') {
-            $query->where('status_kompensasi', '!=', 'selesai')
+            $query->where(function($q) {
+                      $q->where('status_kompensasi', '!=', 'selesai')
+                        ->orWhereNull('status_kompensasi');
+                  })
                   ->where(function($q) {
                       $q->where('status_kompensasi', 'diganti_sebagian')
                         ->orWhere('reported_to_supplier', true)
                         ->orWhere('status', 'reported');
                   });
         } elseif ($status === 'belum_dilaporkan') {
-            $query->where('status_kompensasi', '!=', 'selesai')
-                  ->where('status_kompensasi', '!=', 'diganti_sebagian')
+            $query->where(function($q) {
+                      $q->where('status_kompensasi', '!=', 'selesai')
+                        ->orWhereNull('status_kompensasi');
+                  })
+                  ->where(function($q) {
+                      $q->where('status_kompensasi', '!=', 'diganti_sebagian')
+                        ->orWhereNull('status_kompensasi');
+                  })
                   ->where('reported_to_supplier', false)
                   ->where('status', '!=', 'reported');
         }
@@ -455,6 +464,8 @@ class BadProductController extends Controller
                         'image' => $bp->image,
                         'image_url' => $bp->image_url,
                         'status' => $bp->status ?? 'pending',
+                        'status_kompensasi' => $bp->status_kompensasi,
+                        'display_status' => $bp->display_status,
                         'reported_at' => $bp->reported_at,
                         'reported_to_supplier' => $bp->reported_to_supplier,
                         'created_at' => $bp->created_at,
@@ -529,6 +540,8 @@ class BadProductController extends Controller
                     'image' => $item->image,
                     'image_url' => $item->image_url,
                     'status' => $item->status ?? 'pending',
+                    'status_kompensasi' => $item->status_kompensasi,
+                    'display_status' => $item->display_status,
                     'reported_at' => $item->reported_at,
                     'reported_to_supplier' => $item->reported_to_supplier,
                     'created_at' => $item->created_at,
