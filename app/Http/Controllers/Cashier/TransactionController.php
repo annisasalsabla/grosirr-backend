@@ -293,13 +293,7 @@ class TransactionController extends Controller
 
             DB::commit();
 
-            // Clear products cache after transaction (stok berubah)
-            // Clear all page variants (1-10) for all categories
-            foreach (range(1, 10) as $page) {
-                Cache::forget("cashier_products_all_page_{$page}");
-                Cache::forget("cashier_products_egg_page_{$page}");
-                Cache::forget("cashier_products_rice_page_{$page}");
-            }
+            // Cache produk telah dihapus (realtime), tidak perlu clear cache lagi
 
             // Logging
             \Illuminate\Support\Facades\Log::info('Transaksi penjualan berhasil dicatat', [
@@ -707,12 +701,7 @@ class TransactionController extends Controller
                 $transaction->update(['stock_deducted' => true]);
             }
 
-            // Clear products cache after confirm payment (stok berubah)
-            foreach (range(1, 10) as $page) {
-                Cache::forget("cashier_products_all_page_{$page}");
-                Cache::forget("cashier_products_egg_page_{$page}");
-                Cache::forget("cashier_products_rice_page_{$page}");
-            }
+            // Cache produk telah dihapus (realtime), tidak perlu clear cache lagi
 
             return $this->success([
                 'id' => $transaction->id,
@@ -793,12 +782,7 @@ class TransactionController extends Controller
                     $transaction->update(['stock_deducted' => true]);
                 }
 
-                // Clear products cache after Midtrans payment verified (stok berubah)
-                foreach (range(1, 10) as $page) {
-                    Cache::forget("cashier_products_all_page_{$page}");
-                    Cache::forget("cashier_products_egg_page_{$page}");
-                    Cache::forget("cashier_products_rice_page_{$page}");
-                }
+                // Cache produk telah dihapus (realtime), tidak perlu clear cache lagi
 
                 return $this->success([
                     'id' => $transaction->id,

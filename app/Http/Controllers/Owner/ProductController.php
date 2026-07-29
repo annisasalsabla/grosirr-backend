@@ -100,17 +100,13 @@ class ProductController extends Controller
             $perPage = $request->input('per_page', 10);
             $category = $request->input('category');
             
-            $cacheKey = 'owner_products_' . ($category ?? 'all') . '_page_' . ($request->input('page', 1));
-            
             $query = Product::with('supplier');
             
             if ($category && in_array($category, ['egg', 'rice'])) {
                 $query->where('category', $category);
             }
             
-            $products = Cache::remember($cacheKey, 600, function () use ($query, $perPage) {
-                return $query->orderBy('name')->paginate($perPage);
-            });
+            $products = $query->orderBy('name')->paginate($perPage);
             
             return $this->success($products, 'Daftar produk berhasil dimuat', 200);
             
@@ -123,11 +119,7 @@ class ProductController extends Controller
     public function show($id)
     {
         try {
-            $cacheKey = 'owner_product_' . $id;
-            
-            $product = Cache::remember($cacheKey, 3600, function () use ($id) {
-                return Product::with('supplier')->findOrFail($id);
-            });
+            $product = Product::with('supplier')->findOrFail($id);
             
             return $this->success($product, 'Detail produk berhasil dimuat', 200);
             

@@ -26,14 +26,10 @@ class StockController extends Controller
         try {
             $perPage = $request->input('per_page', 10);
             
-            $cacheKey = 'owner_stocks_page_' . ($request->input('page', 1));
-            
-            $stocks = Cache::remember($cacheKey, 300, function () use ($perPage) {
-                return Stock::with(['product', 'user'])
-                    ->where('type', 'in')
-                    ->orderBy('created_at', 'desc')
-                    ->paginate($perPage);
-            });
+            $stocks = Stock::with(['product', 'user'])
+                ->where('type', 'in')
+                ->orderBy('created_at', 'desc')
+                ->paginate($perPage);
             
             // Ringkasan stok
             $summary = [
