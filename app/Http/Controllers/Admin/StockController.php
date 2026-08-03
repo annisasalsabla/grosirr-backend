@@ -45,7 +45,7 @@ class StockController extends Controller
                 'compensation_quantity' => 'required_with:bad_product_id|integer|min:1|lte:quantity',
                 // Jika kompensasi, parameter supplier/price tidak wajib
                 'supplier_id' => 'required_without:bad_product_id|exists:suppliers,id',
-                'purchase_price' => 'required_without:bad_product_id|numeric|min:0',
+                'purchase_price' => 'required_without:bad_product_id|numeric|gt:0',
                 'is_credit' => 'boolean',
                 'due_date' => 'required_if:is_credit,true|date|after_or_equal:today',
                 'bukti_pembelian' => 'required_without:bad_product_id|image|max:2048', // Opsional jika kompensasi

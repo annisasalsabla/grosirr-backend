@@ -49,8 +49,7 @@ class ProductController extends Controller
                 'name' => 'required|string|max:255',
                 'category' => 'required|in:egg,rice',
                 'unit' => 'required|string|in:tray,karung',
-                'purchase_price' => 'required|numeric|gt:0',
-                'selling_price' => 'required|numeric|min:0|gt:purchase_price',
+                'selling_price' => 'required|numeric|gt:0',
                 'min_stock' => 'required|integer|min:0',
                 'supplier_id' => 'nullable|exists:suppliers,id',
             ]);
@@ -59,7 +58,7 @@ class ProductController extends Controller
                 'name' => $request->name,
                 'category' => $request->category,
                 'unit' => $request->unit,
-                'purchase_price' => $request->purchase_price,
+                'purchase_price' => 0, // Hardcode 0
                 'selling_price' => $request->selling_price,
                 'stock' => 0,
                 'min_stock' => $request->min_stock,
@@ -100,20 +99,19 @@ class ProductController extends Controller
             $request->validate([
                 'name' => 'sometimes|string|max:255',
                 'unit' => 'sometimes|string|in:tray,karung',
-                'purchase_price' => 'sometimes|numeric|gt:0',
-                'selling_price' => 'sometimes|numeric|min:0',
+                'selling_price' => 'sometimes|numeric|gt:0',
                 'min_stock' => 'sometimes|integer|min:0',
                 'supplier_id' => 'nullable|exists:suppliers,id',
             ]);
             
-            if ($request->has('selling_price') && $request->has('purchase_price')) {
-                if ($request->selling_price <= $request->purchase_price) {
-                    return $this->error('Harga jual harus lebih besar dari harga beli', null, 400);
+            if ($request->has('selling_price')) {
+                if ($request->selling_price <= $product->purchase_price) {
+                    return $this->error('Harga jual harus lebih besar dari harga beli saat ini (Rp ' . number_format($product->purchase_price, 0, ',', '.') . ')', null, 400);
                 }
             }
             
             $product->update($request->only([
-                'name', 'unit', 'purchase_price', 'selling_price', 'min_stock', 'supplier_id'
+                'name', 'unit', 'selling_price', 'min_stock', 'supplier_id'
             ]));
             
             $this->logger->info('Product updated by Admin', [

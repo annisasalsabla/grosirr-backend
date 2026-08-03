@@ -88,6 +88,11 @@ class TransactionController extends Controller
             foreach ($request->items as $item) {
                 $product = Product::findOrFail($item['product_id']);
                 
+                if ($product->purchase_price <= 0) {
+                    DB::rollBack();
+                    return $this->error("Produk '{$product->name}' belum memiliki Harga Beli (belum pernah di-Tambah Stok). Hubungi Admin untuk menambahkan stok produk ini terlebih dahulu sebelum bisa dijual.", null, 400);
+                }
+                
                 if ($product->stock < $item['quantity']) {
                     DB::rollBack();
                     return $this->error("Stok {$product->name} tidak mencukupi. Stok tersedia: {$product->stock}", null, 400);
