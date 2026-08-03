@@ -36,7 +36,7 @@ class CustomerController extends Controller
             $perPage = $request->input('per_page', 10);
             $search = $request->input('search') ?? $request->input('q');
 
-            $query = Customer::query();
+            $query = Customer::with('user:id,is_active');
 
             if ($search) {
                 $query->where(function ($q) use ($search) {
@@ -307,6 +307,37 @@ class CustomerController extends Controller
         } catch (\Exception $e) {
             $this->logger->error('Delete customer error: ' . $e->getMessage());
             return $this->error('Terjadi kesalahan saat menghapus pelanggan', null, 500);
+        }
+    }
+
+    public function toggleAccount($id)
+    {
+        try {
+            $customer = Customer::with('user')->findOrFail($id);
+            
+            if (!$customer->user_id || !$customer->user) {
+                return $this->error('Pelanggan ini belum memiliki akun login', null, 400);
+            }
+
+            $user = $customer->user;
+            $user->is_active = !$user->is_active;
+            $user->save();
+
+            if (!$user->is_active) {
+                $user->tokens()->delete();
+                \Illuminate\Support\Facades\Cache::forget("user_{$user->id}");
+            }
+
+            $statusStr = $user->is_active ? 'diaktifkan' : 'dinonaktifkan';
+
+            return $this->success([
+                'customer_id' => $customer->id,
+                'is_active' => $user->is_active
+            ], "Akun login pelanggan berhasil $statusStr", 200);
+
+        } catch (\Exception $e) {
+            $this->logger->error('Toggle customer account error: ' . $e->getMessage());
+            return $this->error('Terjadi kesalahan sistem atau pelanggan tidak ditemukan', null, 500);
         }
     }
 }

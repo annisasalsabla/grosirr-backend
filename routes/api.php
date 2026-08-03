@@ -158,6 +158,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/stocks/history', [App\Http\Controllers\Admin\StockController::class, 'history']);
         
         // ==================== SUPPLIERS ====================
+        Route::patch('/suppliers/{id}/toggle-account', [App\Http\Controllers\Admin\SupplierController::class, 'toggleAccount']);
         Route::apiResource('suppliers', App\Http\Controllers\Admin\SupplierController::class);
         
         // ==================== BAD PRODUCTS ====================
@@ -180,6 +181,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/payables/{id}/pay', [App\Http\Controllers\Admin\PayableController::class, 'pay']);
         
         // ==================== CUSTOMERS (KELOLA PELANGGAN - CRUD Manual) ====================
+        Route::patch('/customers/{id}/toggle-account', [App\Http\Controllers\Admin\CustomerController::class, 'toggleAccount']);
         Route::get('/customers', [App\Http\Controllers\Admin\CustomerController::class, 'index']);
         Route::post('/customers', [App\Http\Controllers\Admin\CustomerController::class, 'store']);
         Route::get('/customers/{id}', [App\Http\Controllers\Admin\CustomerController::class, 'show']);

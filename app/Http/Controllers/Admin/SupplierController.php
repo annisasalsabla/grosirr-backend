@@ -28,7 +28,7 @@ class SupplierController extends Controller
         try {
             $perPage = $request->input('per_page', 10);
             
-            $suppliers = Supplier::orderBy('name')->paginate($perPage);
+            $suppliers = Supplier::with('user:id,is_active')->orderBy('name')->paginate($perPage);
             
             return $this->success($suppliers, 'Daftar supplier berhasil dimuat', 200);
             
@@ -212,6 +212,37 @@ class SupplierController extends Controller
         } catch (\Exception $e) {
             $this->logger->error('Delete supplier error: ' . $e->getMessage());
             return $this->error('Terjadi kesalahan saat menghapus supplier', null, 500);
+        }
+    }
+
+    public function toggleAccount($id)
+    {
+        try {
+            $supplier = Supplier::with('user')->findOrFail($id);
+            
+            if (!$supplier->user_id || !$supplier->user) {
+                return $this->error('Supplier ini belum memiliki akun login', null, 400);
+            }
+
+            $user = $supplier->user;
+            $user->is_active = !$user->is_active;
+            $user->save();
+
+            if (!$user->is_active) {
+                $user->tokens()->delete();
+                \Illuminate\Support\Facades\Cache::forget("user_{$user->id}");
+            }
+
+            $statusStr = $user->is_active ? 'diaktifkan' : 'dinonaktifkan';
+
+            return $this->success([
+                'supplier_id' => $supplier->id,
+                'is_active' => $user->is_active
+            ], "Akun login supplier berhasil $statusStr", 200);
+
+        } catch (\Exception $e) {
+            $this->logger->error('Toggle supplier account error: ' . $e->getMessage());
+            return $this->error('Terjadi kesalahan sistem atau supplier tidak ditemukan', null, 500);
         }
     }
 }
