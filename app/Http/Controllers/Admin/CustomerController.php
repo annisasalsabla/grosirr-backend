@@ -106,6 +106,9 @@ class CustomerController extends Controller
             }])->findOrFail($id);
 
             $customer->total_receivable = $customer->getTotalReceivable();
+            
+            $totalPiutangAktif = (float)($customer->receivables()->where('remaining_debt', '>', 0)->sum('remaining_debt') ?? 0);
+            $customer->sisa_limit = max(0, $customer->credit_limit - $totalPiutangAktif);
 
             // Ambil riwayat piutang customer
             $receivables = Receivable::where('customer_id', $customer->id)
