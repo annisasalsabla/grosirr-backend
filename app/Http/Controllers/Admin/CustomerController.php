@@ -36,7 +36,7 @@ class CustomerController extends Controller
             $perPage = $request->input('per_page', 10);
             $search = $request->input('search') ?? $request->input('q');
 
-            $query = Customer::with('user:id,is_active');
+            $query = Customer::with('user:id,username,is_active');
 
             if ($search) {
                 $query->where(function ($q) use ($search) {

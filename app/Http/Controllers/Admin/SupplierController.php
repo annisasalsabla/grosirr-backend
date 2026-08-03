@@ -27,11 +27,11 @@ class SupplierController extends Controller
     {
         try {
             $perPage = $request->input('per_page', 10);
-            
-            $suppliers = Supplier::with('user:id,is_active')->orderBy('name')->paginate($perPage);
-            
+
+            $suppliers = Supplier::with('user:id,username,is_active')->orderBy('name')->paginate($perPage);
+
             return $this->success($suppliers, 'Daftar supplier berhasil dimuat', 200);
-            
+
         } catch (\Exception $e) {
             $this->logger->error('Get suppliers error: ' . $e->getMessage());
             return $this->error('Terjadi kesalahan saat memuat daftar supplier', null, 500);
@@ -54,7 +54,7 @@ class SupplierController extends Controller
                 ],
                 'password' => 'required_with:username|nullable|string|min:6',
             ]);
-            
+
             DB::beginTransaction();
             try {
                 $userId = null;
@@ -73,7 +73,7 @@ class SupplierController extends Controller
                     $request->only(['name', 'address', 'phone', 'product_type']),
                     ['user_id' => $userId]
                 ));
-                
+
                 DB::commit();
 
                 $this->logger->info('Supplier created by Admin', [
@@ -81,15 +81,15 @@ class SupplierController extends Controller
                     'supplier_name' => $supplier->name,
                     'admin_id' => $request->user()->id
                 ]);
-                
+
                 return $this->success($supplier, 'Supplier berhasil ditambahkan', 201);
-                
+
             } catch (\Exception $e) {
                 DB::rollBack();
                 $this->logger->error('Create supplier error: ' . $e->getMessage());
                 return $this->error('Terjadi kesalahan sistem, data gagal disimpan', null, 500);
             }
-            
+
         } catch (ValidationException $e) {
             return $this->validationError($e->errors(), 'Data supplier tidak valid');
         }
@@ -193,22 +193,22 @@ class SupplierController extends Controller
     {
         try {
             $supplier = Supplier::findOrFail($id);
-            
+
             // Cek apakah supplier memiliki produk
             if ($supplier->products()->exists()) {
                 return $this->error('Supplier tidak dapat dihapus karena masih memiliki produk', null, 400);
             }
-            
+
             $supplier->delete();
-            
+
             $this->logger->info('Supplier deleted by Admin', [
                 'supplier_id' => $id,
                 'supplier_name' => $supplier->name,
                 'admin_id' => $request->user()->id
             ]);
-            
+
             return $this->success(null, 'Supplier berhasil dihapus', 200);
-            
+
         } catch (\Exception $e) {
             $this->logger->error('Delete supplier error: ' . $e->getMessage());
             return $this->error('Terjadi kesalahan saat menghapus supplier', null, 500);
@@ -219,7 +219,7 @@ class SupplierController extends Controller
     {
         try {
             $supplier = Supplier::with('user')->findOrFail($id);
-            
+
             if (!$supplier->user_id || !$supplier->user) {
                 return $this->error('Supplier ini belum memiliki akun login', null, 400);
             }
