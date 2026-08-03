@@ -221,6 +221,7 @@ class TransactionController extends Controller
                         'product_id' => $item['product']->id,
                         'type' => 'out',
                         'quantity' => $item['quantity'],
+                        'base_quantity' => $item['quantity'],
                         'description' => 'Penjualan - Invoice: ' . $transaction->invoice_number,
                         'user_id' => $request->user()->id,
                     ]);
@@ -870,6 +871,7 @@ class TransactionController extends Controller
                     'product_id' => $product->id,
                     'type' => 'out',
                     'quantity' => $detail->quantity,
+                    'base_quantity' => $detail->quantity,
                     'description' => 'Penjualan (Midtrans Lunas) - Invoice: ' . $transaction->invoice_number,
                     'user_id' => $transaction->cashier_id,
                 ]);

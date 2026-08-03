@@ -96,6 +96,7 @@ class DevController extends Controller
                     'product_id' => $product->id,
                     'type' => 'out',
                     'quantity' => $detail->quantity,
+                    'base_quantity' => $detail->quantity,
                     'description' => 'Penjualan (Simulasi Midtrans Lunas) - Invoice: ' . $transaction->invoice_number,
                     'user_id' => $transaction->cashier_id,
                 ]);

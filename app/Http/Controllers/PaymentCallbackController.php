@@ -302,6 +302,7 @@ class PaymentCallbackController extends Controller
                     'product_id' => $product->id,
                     'type' => 'out',
                     'quantity' => $detail->quantity,
+                    'base_quantity' => $detail->quantity,
                     'description' => 'Penjualan (Midtrans Lunas) - Invoice: ' . $transaction->invoice_number,
                     'user_id' => $transaction->cashier_id,
                 ]);
