@@ -177,7 +177,7 @@ class CustomerController extends Controller
                 'credit_limit' => 'sometimes|numeric|min:0',
                 
                 'username' => [
-                    'nullable',
+                    $userId ? 'nullable' : 'required_with:password',
                     'string',
                     $userId ? \Illuminate\Validation\Rule::unique('users', 'username')->ignore($userId) : 'unique:users,username',
                     $userId ? \Illuminate\Validation\Rule::unique('users', 'email')->ignore($userId) : 'unique:users,email'
@@ -187,6 +187,8 @@ class CustomerController extends Controller
                     'string',
                     'min:6'
                 ]
+            ], [
+                'username.required_with' => 'Username wajib diisi untuk membuat akun login baru'
             ]);
             
             DB::beginTransaction();
@@ -236,6 +238,8 @@ class CustomerController extends Controller
                     'customer_id' => $customer->id,
                     'admin_id' => $request->user()->id
                 ]);
+
+                $customer->load('user');
 
                 $response = [
                     'success' => true,

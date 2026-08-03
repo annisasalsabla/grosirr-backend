@@ -117,7 +117,7 @@ class SupplierController extends Controller
                 'phone' => 'sometimes|string|max:15',
                 'product_type' => 'sometimes|in:egg,rice',
                 'username' => [
-                    'nullable',
+                    $userId ? 'nullable' : 'required_with:password',
                     'string',
                     $userId ? \Illuminate\Validation\Rule::unique('users', 'username')->ignore($userId) : 'unique:users,username',
                     $userId ? \Illuminate\Validation\Rule::unique('users', 'email')->ignore($userId) : 'unique:users,email'
@@ -127,6 +127,8 @@ class SupplierController extends Controller
                     'string',
                     'min:6'
                 ]
+            ], [
+                'username.required_with' => 'Username wajib diisi untuk membuat akun login baru'
             ]);
 
             DB::beginTransaction();
@@ -168,6 +170,8 @@ class SupplierController extends Controller
                     'supplier_id' => $supplier->id,
                     'admin_id' => $request->user()->id
                 ]);
+
+                $supplier->load('user');
 
                 return $this->success($supplier, 'Supplier berhasil diperbarui', 200);
 
