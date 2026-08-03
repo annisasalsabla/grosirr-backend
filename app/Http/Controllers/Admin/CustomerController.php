@@ -134,7 +134,7 @@ class CustomerController extends Controller
     public function show($id)
     {
         try {
-            $customer = Customer::with(['transactions' => function ($query) {
+            $customer = Customer::with(['user', 'transactions' => function ($query) {
                 $query->orderBy('created_at', 'desc')->limit(10);
             }])->findOrFail($id);
 

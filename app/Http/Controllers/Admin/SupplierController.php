@@ -98,7 +98,7 @@ class SupplierController extends Controller
     public function show($id)
     {
         try {
-            $supplier = Supplier::findOrFail($id);
+            $supplier = Supplier::with('user')->findOrFail($id);
             return $this->success($supplier, 'Detail supplier berhasil dimuat', 200);
         } catch (\Exception $e) {
             return $this->error('Supplier tidak ditemukan', null, 404);
