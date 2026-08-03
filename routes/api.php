@@ -260,6 +260,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         // ==================== CUSTOMERS (READ ONLY) ====================
         // List pelanggan untuk dropdown saat metode kredit dipilih
         Route::get('/customers', [App\Http\Controllers\Cashier\CustomerController::class, 'index']);
+        Route::get('/customers/{id}/credit-info', [App\Http\Controllers\Cashier\CustomerController::class, 'creditInfo']);
 
         // ==================== PROFILE ====================
         Route::get('/profile', [App\Http\Controllers\Cashier\ProfileController::class, 'show']);

@@ -147,6 +147,35 @@ class TransactionController extends Controller
                     $paymentStatus = 'unpaid';
                     $dueDate = now()->addDays(5);
                 }
+
+                if ($request->payment_method === 'receivable' && $paymentStatus !== 'paid') {
+                    $customerForCredit = Customer::where('id', $customerId)->lockForUpdate()->first();
+                    if (!$customerForCredit) {
+                        DB::rollBack();
+                        return $this->error('Pelanggan tidak ditemukan, pastikan pelanggan sudah terdaftar sebelum melakukan transaksi kredit/piutang.', null, 403);
+                    }
+
+                    $rawSum = $customerForCredit->receivables()
+                        ->where('remaining_debt', '>', 0)
+                        ->sum('remaining_debt');
+                    
+                    $totalPiutangAktif = (float)($rawSum ?? 0);
+                    $nilaiTransaksiBaru = $totalAmount - $paidAmount;
+
+                    if (($totalPiutangAktif + $nilaiTransaksiBaru) > $customerForCredit->credit_limit) {
+                        DB::rollBack();
+                        
+                        $formattedTotal = number_format($totalPiutangAktif, 0, ',', '.');
+                        $formattedLimit = number_format($customerForCredit->credit_limit, 0, ',', '.');
+                        $formattedSisa = number_format(max(0, $customerForCredit->credit_limit - $totalPiutangAktif), 0, ',', '.');
+                        
+                        return $this->error(
+                            "Transaksi ditolak. Limit kredit member ini sudah tercapai. Piutang aktif saat ini: Rp {$formattedTotal} dari limit Rp {$formattedLimit}. Sisa limit: Rp {$formattedSisa}.", 
+                            null, 
+                            400
+                        );
+                    }
+                }
             } elseif ($request->payment_method === 'qris' || $request->payment_method === 'qris_statis') {
                 $paymentStatus = 'pending';
                 $paidAmount = 0;

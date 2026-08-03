@@ -42,4 +42,27 @@ class CustomerController extends Controller
             return $this->error('Terjadi kesalahan saat memuat daftar pelanggan', null, 500);
         }
     }
+
+    /**
+     * Get credit info for a specific customer
+     * GET /api/cashier/customers/{id}/credit-info
+     */
+    public function creditInfo($id)
+    {
+        try {
+            $customer = Customer::findOrFail($id);
+            
+            $totalPiutangAktif = (float)($customer->receivables()->where('remaining_debt', '>', 0)->sum('remaining_debt') ?? 0);
+            $sisaLimit = max(0, $customer->credit_limit - $totalPiutangAktif);
+            
+            return $this->success([
+                'credit_limit' => (float) $customer->credit_limit,
+                'total_piutang_aktif' => $totalPiutangAktif,
+                'sisa_limit' => $sisaLimit
+            ], 'Info kredit berhasil dimuat', 200);
+
+        } catch (\Exception $e) {
+            return $this->error('Pelanggan tidak ditemukan', null, 404);
+        }
+    }
 }

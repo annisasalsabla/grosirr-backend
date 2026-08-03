@@ -73,9 +73,10 @@ class CustomerController extends Controller
                 'name' => 'required|string|max:255',
                 'phone' => 'required|string|max:15|unique:customers,phone',
                 'address' => 'required|string',
+                'credit_limit' => 'sometimes|numeric|min:0',
             ]);
 
-            $customer = Customer::create($request->only(['name', 'phone', 'address']));
+            $customer = Customer::create($request->only(['name', 'phone', 'address', 'credit_limit']));
 
             $this->logger->info('Customer created by Admin', [
                 'customer_id' => $customer->id,
@@ -136,16 +137,37 @@ class CustomerController extends Controller
                 'name' => 'sometimes|string|max:255',
                 'phone' => 'sometimes|string|max:15|unique:customers,phone,' . $id,
                 'address' => 'sometimes|string',
+                'credit_limit' => 'sometimes|numeric|min:0',
             ]);
+            
+            $totalPiutangAktif = (float)($customer->receivables()->where('remaining_debt', '>', 0)->sum('remaining_debt') ?? 0);
+            
+            $warning = null;
+            if ($request->has('credit_limit') && $request->credit_limit < $totalPiutangAktif) {
+                $limitBaru = number_format($request->credit_limit, 0, ',', '.');
+                $aktif = number_format($totalPiutangAktif, 0, ',', '.');
+                $warning = "Limit baru (Rp {$limitBaru}) lebih rendah dari piutang aktif member saat ini (Rp {$aktif}). Member ini tidak bisa transaksi kredit baru sampai piutangnya berkurang.";
+            }
 
-            $customer->update($request->only(['name', 'phone', 'address']));
+            $customer->update($request->only(['name', 'phone', 'address', 'credit_limit']));
 
             $this->logger->info('Customer updated by Admin', [
                 'customer_id' => $customer->id,
                 'admin_id' => $request->user()->id
             ]);
 
-            return $this->success($customer, 'Pelanggan berhasil diperbarui', 200);
+            $response = [
+                'success' => true,
+                'message' => 'Pelanggan berhasil diperbarui',
+                'data' => $customer,
+                'code' => 200
+            ];
+            
+            if ($warning) {
+                $response['warning'] = $warning;
+            }
+
+            return response()->json($response, 200);
 
         } catch (ValidationException $e) {
             return $this->validationError($e->errors(), 'Data pelanggan tidak valid');
