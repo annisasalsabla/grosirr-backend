@@ -245,6 +245,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::patch('/notifications/read-all', [App\Http\Controllers\Admin\AdminNotificationController::class, 'markAllRead']);
         Route::patch('/notifications/{id}/read', [App\Http\Controllers\Admin\AdminNotificationController::class, 'markAsRead']);
         Route::delete('/notifications/{id}', [App\Http\Controllers\Admin\AdminNotificationController::class, 'destroy']);
+        
+        // ==================== ITEM REQUESTS (PENGADAAN BARANG) ====================
+        Route::get('/item-requests', [App\Http\Controllers\Admin\ItemRequestController::class, 'index']);
+        Route::put('/item-requests/{id}/status', [App\Http\Controllers\Admin\ItemRequestController::class, 'updateStatus']);
     });
     
     /*
@@ -298,5 +302,32 @@ Route::middleware(['auth:sanctum'])->group(function () {
         
         // ==================== PRINT STRUK ====================
         Route::get('/print/{transaction_id}', [App\Http\Controllers\Cashier\PrintController::class, 'printStruk']);
+        
+        // ==================== ITEM REQUESTS (UPDATE STATUS OLEH KASIR) ====================
+        Route::get('/item-requests', [App\Http\Controllers\Admin\ItemRequestController::class, 'index']);
+        Route::put('/item-requests/{id}/status', [App\Http\Controllers\Admin\ItemRequestController::class, 'updateStatus']);
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | SUPPLIER ONLY ROUTES
+    |--------------------------------------------------------------------------
+    */
+    Route::middleware(['role:supplier'])->prefix('supplier')->group(function () {
+        Route::get('/deliveries', [App\Http\Controllers\Supplier\PortalController::class, 'getDeliveries']);
+        Route::get('/payables', [App\Http\Controllers\Supplier\PortalController::class, 'getPayables']);
+        Route::get('/bad-products', [App\Http\Controllers\Supplier\PortalController::class, 'getBadProducts']);
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | MEMBER ONLY ROUTES
+    |--------------------------------------------------------------------------
+    */
+    Route::middleware(['role:member'])->prefix('member')->group(function () {
+        Route::get('/transactions', [App\Http\Controllers\Member\PortalController::class, 'getTransactions']);
+        Route::get('/receivables', [App\Http\Controllers\Member\PortalController::class, 'getReceivables']);
+        Route::get('/item-requests', [App\Http\Controllers\Member\ItemRequestController::class, 'index']);
+        Route::post('/item-requests', [App\Http\Controllers\Member\ItemRequestController::class, 'store']);
     });
 });

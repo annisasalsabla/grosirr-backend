@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use App\Models\Receivable;
 use App\Traits\ApiResponseTrait;
 use App\Services\SerenityLoggerService;
@@ -74,23 +77,53 @@ class CustomerController extends Controller
                 'phone' => 'required|string|max:15|unique:customers,phone',
                 'address' => 'required|string',
                 'credit_limit' => 'sometimes|numeric|min:0',
+                
+                'username' => [
+                    'nullable',
+                    'string',
+                    'unique:users,username',
+                    'unique:users,email'
+                ],
+                'password' => 'required_with:username|nullable|string|min:6',
             ]);
 
-            $customer = Customer::create($request->only(['name', 'phone', 'address', 'credit_limit']));
+            DB::beginTransaction();
+            try {
+                $userId = null;
+                if ($request->filled('username')) {
+                    $user = User::create([
+                        'name' => $request->name,
+                        'username' => $request->username,
+                        'password' => Hash::make($request->password),
+                        'role' => 'member',
+                        'is_active' => true,
+                    ]);
+                    $userId = $user->id;
+                }
 
-            $this->logger->info('Customer created by Admin', [
-                'customer_id' => $customer->id,
-                'customer_name' => $customer->name,
-                'admin_id' => $request->user()->id
-            ]);
+                $customer = Customer::create(array_merge(
+                    $request->only(['name', 'phone', 'address', 'credit_limit']),
+                    ['user_id' => $userId]
+                ));
 
-            return $this->success($customer, 'Pelanggan berhasil ditambahkan', 201);
+                DB::commit();
+
+                $this->logger->info('Customer created by Admin', [
+                    'customer_id' => $customer->id,
+                    'customer_name' => $customer->name,
+                    'admin_id' => $request->user()->id
+                ]);
+
+                return $this->success($customer, 'Pelanggan berhasil ditambahkan', 201);
+                
+            } catch (\Exception $e) {
+                DB::rollBack();
+                $this->logger->error('Create customer error: ' . $e->getMessage());
+                return $this->error('Terjadi kesalahan saat menambah pelanggan', null, 500);
+            }
 
         } catch (ValidationException $e) {
             return $this->validationError($e->errors(), 'Data pelanggan tidak valid');
-        } catch (\Exception $e) {
-            $this->logger->error('Create customer error: ' . $e->getMessage());
-            return $this->error('Terjadi kesalahan saat menambah pelanggan', null, 500);
         }
     }
 
@@ -134,43 +167,94 @@ class CustomerController extends Controller
     public function update(Request $request, $id)
     {
         try {
-            $customer = Customer::findOrFail($id);
+            $customer = Customer::with('user')->findOrFail($id);
+            $userId = $customer->user_id;
 
             $request->validate([
                 'name' => 'sometimes|string|max:255',
                 'phone' => 'sometimes|string|max:15|unique:customers,phone,' . $id,
                 'address' => 'sometimes|string',
                 'credit_limit' => 'sometimes|numeric|min:0',
+                
+                'username' => [
+                    'nullable',
+                    'string',
+                    $userId ? \Illuminate\Validation\Rule::unique('users', 'username')->ignore($userId) : 'unique:users,username',
+                    $userId ? \Illuminate\Validation\Rule::unique('users', 'email')->ignore($userId) : 'unique:users,email'
+                ],
+                'password' => [
+                    $userId ? 'nullable' : 'required_with:username',
+                    'string',
+                    'min:6'
+                ]
             ]);
             
-            $totalPiutangAktif = (float)($customer->receivables()->where('remaining_debt', '>', 0)->sum('remaining_debt') ?? 0);
-            
-            $warning = null;
-            if ($request->has('credit_limit') && $request->credit_limit < $totalPiutangAktif) {
-                $limitBaru = number_format($request->credit_limit, 0, ',', '.');
-                $aktif = number_format($totalPiutangAktif, 0, ',', '.');
-                $warning = "Limit baru (Rp {$limitBaru}) lebih rendah dari piutang aktif member saat ini (Rp {$aktif}). Member ini tidak bisa transaksi kredit baru sampai piutangnya berkurang.";
+            DB::beginTransaction();
+            try {
+                $totalPiutangAktif = (float)($customer->receivables()->where('remaining_debt', '>', 0)->sum('remaining_debt') ?? 0);
+                
+                $warning = null;
+                if ($request->has('credit_limit') && $request->credit_limit < $totalPiutangAktif) {
+                    $limitBaru = number_format($request->credit_limit, 0, ',', '.');
+                    $aktif = number_format($totalPiutangAktif, 0, ',', '.');
+                    $warning = "Limit baru (Rp {$limitBaru}) lebih rendah dari piutang aktif member saat ini (Rp {$aktif}). Member ini tidak bisa transaksi kredit baru sampai piutangnya berkurang.";
+                }
+
+                $customer->update($request->only(['name', 'phone', 'address', 'credit_limit']));
+
+                if ($request->filled('username') || $request->filled('password')) {
+                    if ($userId) {
+                        $user = $customer->user; 
+                        if ($request->filled('username')) {
+                            $user->username = $request->username;
+                        }
+                        if ($request->has('name')) {
+                            $user->name = $request->name; 
+                        }
+                        if ($request->filled('password')) {
+                            $user->password = Hash::make($request->password);
+                        }
+                        $user->save();
+                    } else {
+                        if ($request->filled('username')) {
+                            $user = User::create([
+                                'name' => $request->name ?? $customer->name, 
+                                'username' => $request->username,
+                                'password' => Hash::make($request->password),
+                                'role' => 'member',
+                                'is_active' => true,
+                            ]);
+                            $customer->user_id = $user->id;
+                            $customer->save();
+                        }
+                    }
+                }
+
+                DB::commit();
+
+                $this->logger->info('Customer updated by Admin', [
+                    'customer_id' => $customer->id,
+                    'admin_id' => $request->user()->id
+                ]);
+
+                $response = [
+                    'success' => true,
+                    'message' => 'Pelanggan berhasil diperbarui',
+                    'data' => $customer,
+                    'code' => 200
+                ];
+                
+                if ($warning) {
+                    $response['warning'] = $warning;
+                }
+
+                return response()->json($response, 200);
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                $this->logger->error('Transaction error in Customer Update: ' . $e->getMessage());
+                return $this->error('Terjadi kesalahan saat memproses data akun/profil', null, 500);
             }
-
-            $customer->update($request->only(['name', 'phone', 'address', 'credit_limit']));
-
-            $this->logger->info('Customer updated by Admin', [
-                'customer_id' => $customer->id,
-                'admin_id' => $request->user()->id
-            ]);
-
-            $response = [
-                'success' => true,
-                'message' => 'Pelanggan berhasil diperbarui',
-                'data' => $customer,
-                'code' => 200
-            ];
-            
-            if ($warning) {
-                $response['warning'] = $warning;
-            }
-
-            return response()->json($response, 200);
 
         } catch (ValidationException $e) {
             return $this->validationError($e->errors(), 'Data pelanggan tidak valid');

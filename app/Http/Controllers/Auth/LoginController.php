@@ -26,19 +26,21 @@ class LoginController extends Controller
     {
         try {
             $request->validate([
-                'email' => 'required|email',
+                'email' => 'required|string',
                 'password' => 'required|string',
             ]);
 
-            $user = User::where('email', $request->email)->first();
+            $user = User::where('email', $request->email)
+                        ->orWhere('username', $request->email)
+                        ->first();
 
             if (!$user || !Hash::check($request->password, $user->password)) {
-                $this->logger->warning('Login gagal - email atau password salah', [
-                    'email' => $request->email,
+                $this->logger->warning('Login gagal - email/username atau password salah', [
+                    'identifier' => $request->email,
                     'ip' => $request->ip()
                 ]);
                 
-                return $this->error('Email atau password salah', null, 401);
+                return $this->error('Email/Username atau password salah', null, 401);
             }
 
             if (!$user->is_active) {
@@ -61,6 +63,7 @@ class LoginController extends Controller
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
+                    'username' => $user->username,
                     'phone' => $user->phone,
                     'role' => $user->role,
                 ],

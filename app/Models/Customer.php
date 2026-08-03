@@ -10,7 +10,7 @@ class Customer extends Model
     use HasFactory;
 
     protected $fillable = [
-        'name', 'phone', 'address', 'credit_limit',
+        'name', 'phone', 'address', 'credit_limit', 'user_id',
     ];
 
     public function transactions()
@@ -21,6 +21,11 @@ class Customer extends Model
     public function receivables()
     {
         return $this->hasMany(Receivable::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
     }
 
     public function getUnpaidTransactions()

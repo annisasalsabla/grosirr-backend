@@ -10,7 +10,7 @@ class Supplier extends Model
     use HasFactory;
 
     protected $fillable = [
-        'name', 'address', 'phone', 'product_type'
+        'name', 'address', 'phone', 'product_type', 'user_id'
     ];
 
     public function products()
@@ -21,5 +21,10 @@ class Supplier extends Model
     public function payables()
     {
         return $this->hasMany(Payable::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
     }
 }

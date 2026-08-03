@@ -12,7 +12,7 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory, Notifiable;
 
     protected $fillable = [
-        'name', 'email', 'phone', 'password', 'role', 'is_active', 'email_verified_at'
+        'name', 'email', 'username', 'phone', 'password', 'role', 'is_active', 'email_verified_at'
     ];
 
     protected $hidden = [
@@ -47,5 +47,15 @@ class User extends Authenticatable
     public function badProducts()
     {
         return $this->hasMany(BadProduct::class, 'reported_by');
+    }
+
+    public function supplier()
+    {
+        return $this->hasOne(Supplier::class, 'user_id');
+    }
+
+    public function customer()
+    {
+        return $this->hasOne(Customer::class, 'user_id');
     }
 }
