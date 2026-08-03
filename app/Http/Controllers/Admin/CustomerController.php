@@ -78,22 +78,21 @@ class CustomerController extends Controller
                 'address' => 'required|string',
                 'credit_limit' => 'sometimes|numeric|min:0',
                 
-                'username' => [
-                    'nullable',
-                    'string',
-                    'unique:users,username',
-                    'unique:users,email'
-                ],
-                'password' => 'required_with:username|nullable|string|min:6',
+                'email' => 'required_with:password|nullable|email|unique:users,email',
+                'password' => 'required_with:email|nullable|string|min:6',
+            ], [
+                'email.required_with' => 'Email wajib diisi untuk membuat akun login baru',
+                'email.email' => 'Format email tidak valid (harus mengandung @)',
+                'password.required_with' => 'Password wajib diisi jika email diisi'
             ]);
 
             DB::beginTransaction();
             try {
                 $userId = null;
-                if ($request->filled('username')) {
+                if ($request->filled('email') || $request->filled('password')) {
                     $user = User::create([
                         'name' => $request->name,
-                        'username' => $request->username,
+                        'email' => $request->email,
                         'password' => Hash::make($request->password),
                         'role' => 'member',
                         'is_active' => true,
@@ -176,19 +175,20 @@ class CustomerController extends Controller
                 'address' => 'sometimes|string',
                 'credit_limit' => 'sometimes|numeric|min:0',
                 
-                'username' => [
+                'email' => [
                     $userId ? 'nullable' : 'required_with:password',
-                    'string',
-                    $userId ? \Illuminate\Validation\Rule::unique('users', 'username')->ignore($userId) : 'unique:users,username',
+                    'email',
                     $userId ? \Illuminate\Validation\Rule::unique('users', 'email')->ignore($userId) : 'unique:users,email'
                 ],
                 'password' => [
-                    $userId ? 'nullable' : 'required_with:username',
+                    $userId ? 'nullable' : 'required_with:email',
                     'string',
                     'min:6'
                 ]
             ], [
-                'username.required_with' => 'Username wajib diisi untuk membuat akun login baru'
+                'email.required_with' => 'Email wajib diisi untuk membuat akun login baru',
+                'email.email' => 'Format email tidak valid (harus mengandung @)',
+                'password.required_with' => 'Password wajib diisi jika email diisi'
             ]);
             
             DB::beginTransaction();
@@ -204,11 +204,11 @@ class CustomerController extends Controller
 
                 $customer->update($request->only(['name', 'phone', 'address', 'credit_limit']));
 
-                if ($request->filled('username') || $request->filled('password')) {
+                if ($request->filled('email') || $request->filled('password')) {
                     if ($userId) {
                         $user = $customer->user; 
-                        if ($request->filled('username')) {
-                            $user->username = $request->username;
+                        if ($request->filled('email')) {
+                            $user->email = $request->email;
                         }
                         if ($request->has('name')) {
                             $user->name = $request->name; 
@@ -218,10 +218,10 @@ class CustomerController extends Controller
                         }
                         $user->save();
                     } else {
-                        if ($request->filled('username')) {
+                        if ($request->filled('email')) {
                             $user = User::create([
                                 'name' => $request->name ?? $customer->name, 
-                                'username' => $request->username,
+                                'email' => $request->email,
                                 'password' => Hash::make($request->password),
                                 'role' => 'member',
                                 'is_active' => true,

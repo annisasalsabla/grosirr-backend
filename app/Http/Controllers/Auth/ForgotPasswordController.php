@@ -29,7 +29,9 @@ class ForgotPasswordController extends Controller
     {
         try {
             $request->validate([
-                'email' => 'required|email|exists:users,email',
+                'email' => 'required|string|exists:users,email',
+            ], [
+                'email.exists' => 'Email tidak terdaftar atau masih berformat usang. Hubungi Admin untuk memperbarui profil Anda.'
             ]);
 
             $user = User::where('email', $request->email)->first();
