@@ -316,6 +316,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::middleware(['role:supplier'])->prefix('supplier')->group(function () {
+        Route::get('/profile', [App\Http\Controllers\Supplier\PortalController::class, 'getProfile']);
         Route::get('/deliveries', [App\Http\Controllers\Supplier\PortalController::class, 'getDeliveries']);
         Route::get('/payables', [App\Http\Controllers\Supplier\PortalController::class, 'getPayables']);
         Route::get('/bad-products', [App\Http\Controllers\Supplier\PortalController::class, 'getBadProducts']);

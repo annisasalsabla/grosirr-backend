@@ -52,4 +52,24 @@ class PortalController extends Controller
 
         return $this->success($badProducts, 'Data produk rusak terkait berhasil dimuat');
     }
+
+    public function getProfile(Request $request)
+    {
+        $user = $request->user()->load('supplier');
+        if (!$user->supplier) {
+            return $this->error('Data profil supplier tidak ditemukan', null, 404);
+        }
+        $supplierData = $user->supplier;
+        
+        return $this->success([
+            'id' => $supplierData->id,
+            'name' => $supplierData->name,
+            'category' => $supplierData->product_type,
+            'phone' => $supplierData->phone,
+            'address' => $supplierData->address,
+            'email' => $user->email,
+            'username' => $user->username,
+            'is_active' => $user->is_active
+        ], 'Data profil berhasil dimuat');
+    }
 }
