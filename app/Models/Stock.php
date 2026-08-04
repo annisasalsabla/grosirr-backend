@@ -18,13 +18,21 @@ class Stock extends Model
         'quantity' => 'integer',
     ];
 
-    protected $appends = ['bukti_pembelian_url'];
+    protected $appends = ['bukti_pembelian_url', 'payment_label'];
 
     public function getBuktiPembelianUrlAttribute()
     {
         if (!$this->bukti_pembelian) return null;
         if (str_starts_with($this->bukti_pembelian, 'http')) return $this->bukti_pembelian;
         return asset('storage/' . $this->bukti_pembelian);
+    }
+
+    public function getPaymentLabelAttribute()
+    {
+        if ($this->source_type === 'kompensasi_supplier') {
+            return 'Kompensasi Barang';
+        }
+        return $this->is_credit ? 'Hutang' : 'Tunai';
     }
 
     public function product()
