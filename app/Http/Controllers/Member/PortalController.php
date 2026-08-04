@@ -18,7 +18,7 @@ class PortalController extends Controller
         if (!$customer) return $this->error('Data profil customer tidak ditemukan', null, 404);
 
         $transactions = Transaction::where('customer_id', $customer->id)
-            ->with('details.product:id,name')
+            ->with('details.product:id,name,unit,unit_type')
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -31,6 +31,7 @@ class PortalController extends Controller
         if (!$customer) return $this->error('Data profil customer tidak ditemukan', null, 404);
 
         $receivables = Receivable::where('customer_id', $customer->id)
+            ->with('transaction:id,invoice_number')
             ->orderBy('created_at', 'desc')
             ->get();
 

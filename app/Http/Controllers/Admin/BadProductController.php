@@ -391,15 +391,20 @@ class BadProductController extends Controller
         try {
             $badProduct = BadProduct::findOrFail($id);
 
-            // Hapus gambar jika ada
-            if ($badProduct->image) {
-                CloudinaryHelper::delete($badProduct->image);
+            // GUARD: Cek kompensasi
+            $hasCompensationQuantity = $badProduct->compensated_quantity > 0;
+            $hasCompensationValue = (float)$badProduct->compensated_value > 0;
+            
+            $hasRelatedStocks = \App\Models\Stock::where('related_bad_product_id', $id)->exists();
+
+            if ($hasCompensationQuantity || $hasCompensationValue || $hasRelatedStocks) {
+                return $this->error('Barang rusak ini tidak bisa dihapus karena sudah ada kompensasi yang berjalan/selesai. Riwayat kompensasi harus tetap tersimpan untuk integritas data.', null, 400);
             }
 
-            // Hapus data
+            // Hapus data (Soft delete karena ada trait SoftDeletes di model)
             $badProduct->delete();
 
-            $this->logger->info('Barang rusak dihapus oleh Admin', [
+            $this->logger->info('Barang rusak dihapus oleh Admin (Soft Delete)', [
                 'bad_product_id' => $id,
                 'admin_id' => $request->user()->id
             ]);

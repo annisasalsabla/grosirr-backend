@@ -19,7 +19,7 @@ class PortalController extends Controller
         if (!$supplier) return $this->error('Data profil supplier tidak ditemukan', null, 404);
 
         $deliveries = Stock::where('supplier_id', $supplier->id)
-            ->with('product:id,name,category')
+            ->with('product:id,name,category,unit,unit_type')
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -46,7 +46,7 @@ class PortalController extends Controller
         $badProducts = BadProduct::whereHas('product', function($q) use ($supplier) {
                 $q->where('supplier_id', $supplier->id);
             })
-            ->with('product:id,name')
+            ->with('product:id,name,unit,unit_type')
             ->orderBy('created_at', 'desc')
             ->get();
 

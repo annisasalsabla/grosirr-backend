@@ -329,7 +329,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::middleware(['role:member'])->prefix('member')->group(function () {
         Route::get('/transactions', [App\Http\Controllers\Member\PortalController::class, 'getTransactions']);
         Route::get('/receivables', [App\Http\Controllers\Member\PortalController::class, 'getReceivables']);
-        Route::get('/item-requests', [App\Http\Controllers\Member\ItemRequestController::class, 'index']);
-        Route::post('/item-requests', [App\Http\Controllers\Member\ItemRequestController::class, 'store']);
+        // DIBEKUKAN SEMENTARA - Fitur belum dirancang alurnya
+        // Route::get('/item-requests', [App\Http\Controllers\Member\ItemRequestController::class, 'index']);
+        // Route::post('/item-requests', [App\Http\Controllers\Member\ItemRequestController::class, 'store']);
     });
 });
