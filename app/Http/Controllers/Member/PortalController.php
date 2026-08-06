@@ -31,10 +31,39 @@ class PortalController extends Controller
         if (!$customer) return $this->error('Data profil customer tidak ditemukan', null, 404);
 
         $receivables = Receivable::where('customer_id', $customer->id)
-            ->with('transaction:id,invoice_number')
+            ->with(['transaction:id,invoice_number', 'customer'])
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->get()
+            ->map(function ($receivable) {
+                if ($receivable->customer) {
+                    $receivable->customer_name = $receivable->customer->name;
+                    $receivable->customer_phone = $receivable->customer->phone;
+                    $receivable->customer_address = $receivable->customer->address;
+                }
+                unset($receivable->customer);
+                return $receivable;
+            });
 
         return $this->success($receivables, 'Riwayat piutang berhasil dimuat');
+    }
+
+    public function getProfile(Request $request)
+    {
+        $user = $request->user()->load('customer');
+        if (!$user->customer) {
+            return $this->error('Data profil pelanggan tidak ditemukan', null, 404);
+        }
+        $customerData = $user->customer;
+        
+        return $this->success([
+            'id' => $customerData->id,
+            'name' => $customerData->name,
+            'phone' => $customerData->phone,
+            'address' => $customerData->address,
+            'email' => $user->email,
+            'username' => $user->username,
+            'is_active' => $user->is_active,
+            'member_since' => $customerData->created_at,
+        ], 'Data profil berhasil dimuat');
     }
 }

@@ -328,6 +328,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::middleware(['role:member'])->prefix('member')->group(function () {
+        Route::get('/profile', [App\Http\Controllers\Member\PortalController::class, 'getProfile']);
         Route::get('/transactions', [App\Http\Controllers\Member\PortalController::class, 'getTransactions']);
         Route::get('/receivables', [App\Http\Controllers\Member\PortalController::class, 'getReceivables']);
         // DIBEKUKAN SEMENTARA - Fitur belum dirancang alurnya
