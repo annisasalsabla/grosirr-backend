@@ -26,7 +26,7 @@ class ProductController extends Controller
             $perPage = $request->input('per_page', 10);
             $category = $request->input('category');
             
-            $query = Product::select('id', 'name', 'category', 'unit', 'selling_price', 'stock', 'min_stock')
+            $query = Product::select('id', 'name', 'category', 'unit', 'selling_price', 'stock', 'min_stock', 'image_url')
                 ->where('stock', '>', 0);
             
             if ($category && in_array($category, ['egg', 'rice'])) {
@@ -46,7 +46,7 @@ class ProductController extends Controller
     public function show($id)
     {
         try {
-            $product = Product::select('id', 'name', 'category', 'unit', 'selling_price', 'stock', 'min_stock')
+            $product = Product::select('id', 'name', 'category', 'unit', 'selling_price', 'stock', 'min_stock', 'image_url')
                 ->findOrFail($id);
             
             return $this->success($product, 'Detail produk berhasil dimuat', 200);

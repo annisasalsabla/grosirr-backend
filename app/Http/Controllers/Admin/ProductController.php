@@ -52,7 +52,13 @@ class ProductController extends Controller
                 'selling_price' => 'required|numeric|gt:0',
                 'min_stock' => 'required|integer|min:0',
                 'supplier_id' => 'nullable|exists:suppliers,id',
+                'image' => 'nullable|image|max:2048',
             ]);
+            
+            $imagePath = null;
+            if ($request->hasFile('image')) {
+                $imagePath = \App\Helpers\CloudinaryHelper::upload($request->file('image'), 'products');
+            }
             
             $product = Product::create([
                 'name' => $request->name,
@@ -63,6 +69,7 @@ class ProductController extends Controller
                 'stock' => 0,
                 'min_stock' => $request->min_stock,
                 'supplier_id' => $request->supplier_id,
+                'image_url' => $imagePath,
             ]);
             
             $this->logger->info('Product created by Admin', [
@@ -102,6 +109,7 @@ class ProductController extends Controller
                 'selling_price' => 'sometimes|numeric|gt:0',
                 'min_stock' => 'sometimes|integer|min:0',
                 'supplier_id' => 'nullable|exists:suppliers,id',
+                'image' => 'nullable|image|max:2048',
             ]);
             
             if ($request->has('selling_price')) {
@@ -110,9 +118,23 @@ class ProductController extends Controller
                 }
             }
             
-            $product->update($request->only([
+            $dataToUpdate = $request->only([
                 'name', 'unit', 'selling_price', 'min_stock', 'supplier_id'
-            ]));
+            ]);
+            
+            $oldImagePath = null;
+            if ($request->hasFile('image')) {
+                $newImagePath = \App\Helpers\CloudinaryHelper::upload($request->file('image'), 'products');
+                
+                $oldImagePath = $product->image_url;
+                $dataToUpdate['image_url'] = $newImagePath;
+            }
+            
+            $product->update($dataToUpdate);
+            
+            if (isset($oldImagePath) && $oldImagePath) {
+                \App\Helpers\CloudinaryHelper::delete($oldImagePath);
+            }
             
             $this->logger->info('Product updated by Admin', [
                 'product_id' => $product->id,
